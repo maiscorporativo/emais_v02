@@ -1,0 +1,231 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-main: #09090b;
+  --color-gold: #e43c44;
+  --color-gold-secondary: #d12931;
+  --color-accent: #f8f8f8;
+  --font-sans: 'Outfit', sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-marquee-up: marquee-up 35s linear infinite;
+  --animate-marquee-down: marquee-down 35s linear infinite;
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes marquee-up {
+    0% {
+      transform: translateY(0);
+    }
+
+    100% {
+      transform: translateY(calc(-50% - 0.5rem));
+    }
+  }
+
+  @keyframes marquee-down {
+    0% {
+      transform: translateY(calc(-50% - 0.5rem));
+    }
+
+    100% {
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-primary-main text-white antialiased font-sans;
+  }
+
+  /* Global Keyboard Accessibility Strategy */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible {
+    @apply outline-none ring-2 ring-gold ring-offset-2 ring-offset-primary-main rounded-sm transition-shadow;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Custom Orange Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gold);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-secondary);
+}
+
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gold) #09090b;
+}
+
+/* 3D Hover Effect Utilities */
+@layer utilities {
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+  
+  .hover-3d-effect {
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  .hover-3d-effect:hover {
+    transform: translateY(-8px) rotateX(4deg) rotateY(-4deg) scale3d(1.02, 1.02, 1.02);
+    box-shadow: 
+      20px 20px 30px rgba(0,0,0,0.15), 
+      -10px -10px 20px rgba(255,255,255,0.8),
+      inset 0 0 0 1px rgba(255,255,255,0.4);
+  }
+  
+  /* Adds a subtle glare/shine effect on hover */
+  .hover-3d-effect::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(105deg, 
+      transparent 20%, 
+      rgba(255,255,255,0.3) 25%, 
+      transparent 30%
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.6s ease;
+    transform: translateX(-100%);
+    pointer-events: none;
+    z-index: 50;
+  }
+  
+  .hover-3d-effect:hover::after {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+
+  /* Reveal on Scroll Animations */
+  .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: opacity, transform;
+  }
+  
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .reveal-delay-100 { transition-delay: 100ms; }
+  .reveal-delay-200 { transition-delay: 200ms; }
+  .reveal-delay-300 { transition-delay: 300ms; }
+  .reveal-delay-400 { transition-delay: 400ms; }
+  .reveal-delay-500 { transition-delay: 500ms; }
+
+  /* Hide scrollbar for elements but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Contact form input */
+  .form-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 0.625rem;
+    color: #fff;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    font-family: inherit;
+  }
+  .form-input::placeholder {
+    color: rgba(255,255,255,0.25);
+  }
+  .form-input:focus {
+    border-color: var(--color-gold);
+    background: rgba(255,255,255,0.07);
+  }
+}
+
+/* ── Autofill: elimina flash branco/amarelo do browser ──────────────── */
+@keyframes autofillFix {
+  from { background-color: #09090b; }
+  to   { background-color: #09090b; }
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  animation-name: autofillFix;
+  animation-duration: 0.001s;
+  animation-fill-mode: both;
+  -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
+  box-shadow: 0 0 0 1000px #09090b inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+  color-scheme: dark;
+}
+
+/* ── Mobile responsive overrides ───────────────────────────────── */
+@media (max-width: 639px) {
+  /* ContactForm: single column and smaller gap on mobile */
+  #contato-form .contact-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+
+  /* ContactForm: reduce card padding on mobile */
+  #contato-form .form-card {
+    padding: 24px 18px !important;
+    border-radius: 16px !important;
+  }
+
+  /* ContactForm: force form rows to single column on mobile */
+  #contato-form .form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Footer CTA: reduce large heading on small screens */
+  .footer-cta-heading {
+    font-size: 2.6rem !important;
+    line-height: 1.1 !important;
+  }
+}
