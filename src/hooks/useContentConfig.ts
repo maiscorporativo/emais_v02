@@ -294,7 +294,7 @@ export function useContentConfig() {
       nextState = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) };
       return nextState;
     });
-    if (nextState) await persist(nextState, true);
+    if (nextState) await persist(nextState);
   }, [persist]);
 
   const setPackageTrending = useCallback((i: number, isTrending: boolean) =>
