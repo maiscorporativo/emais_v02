@@ -192,7 +192,7 @@ export function useContentConfig() {
   /* ── Save helper ── */
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const persist = useCallback(async (next: ContentStore) => {
+  const persist = useCallback(async (next: ContentStore, immediate = false): Promise<void> => {
     // We only update the local state immediately
     isSaving.current = true;
     hasLocalUnsaved.current = true;
@@ -200,17 +200,10 @@ export function useContentConfig() {
     saveCache(next);
     lastUpdated.current = 'local-edit';
 
-    // Clear previous timeout to debounce the API call
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-
-    saveTimeout.current = setTimeout(async () => {
+    const executeSave = async () => {
       setSaving(true);
       setSaveError(false);
 
-      // We need to fetch the latest state from the ref/closure? No, we should use the `next` that was passed to the LAST persist call.
-      // Wait, if persist is called multiple times, the last `next` is the most recent state.
-      // So we can just use `next`.
-      
       const localCache = loadCache();
       const merged: ContentStore = {
         ...next,
@@ -242,11 +235,24 @@ export function useContentConfig() {
       } catch (err: any) {
         console.warn('[useContentConfig] API save failed:', err);
         setSaveError(err.message || 'Erro desconhecido ao salvar');
+        throw err;
       } finally {
         isSaving.current = false;
         setSaving(false);
       }
-    }, 1000); // 1s debounce
+    };
+
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+
+    if (immediate) {
+      return executeSave();
+    } else {
+      return new Promise((resolve, reject) => {
+        saveTimeout.current = setTimeout(() => {
+          executeSave().then(resolve).catch(reject);
+        }, 1000);
+      });
+    }
   }, []);
 
   /* ── Events ── */
@@ -280,14 +286,15 @@ export function useContentConfig() {
   }, [persist]);
 
   /* ── Packages ── */
-  const updatePackage = useCallback((i: number, d: Partial<TrendingPackage>) => {
+  const updatePackage = useCallback(async (i: number, d: Partial<TrendingPackage>) => {
     const user = getAdminUser();
     const audit = { updatedBy: user, updatedAt: now(), status: 'pending' as const };
+    let nextState: ContentStore | undefined;
     setContent(prev => {
-      const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) };
-      persist(next);
-      return next;
+      nextState = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) };
+      return nextState;
     });
+    if (nextState) await persist(nextState, true);
   }, [persist]);
 
   const setPackageTrending = useCallback((i: number, isTrending: boolean) =>
@@ -303,16 +310,26 @@ export function useContentConfig() {
     setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, status: 'rejected' as const, rejectedBy: user, rejectedAt: now(), approvedBy: undefined, approvedAt: undefined } : p) }; persist(next); return next; });
   }, [persist]);
 
-  const masterUpdatePackage = useCallback((i: number, d: Partial<TrendingPackage>) => {
+  const masterUpdatePackage = useCallback(async (i: number, d: Partial<TrendingPackage>) => {
     const user = getMasterUser();
     const audit = { status: 'approved' as const, approvedBy: user, approvedAt: now() };
-    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) }; persist(next); return next; });
+    let nextState: ContentStore | undefined;
+    setContent(prev => { 
+      nextState = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) }; 
+      return nextState; 
+    });
+    if (nextState) await persist(nextState, true);
   }, [persist]);
 
-  const marketingUpdatePackage = useCallback((i: number, d: Partial<TrendingPackage>) => {
+  const marketingUpdatePackage = useCallback(async (i: number, d: Partial<TrendingPackage>) => {
     const user = getMarketingUser();
     const audit = { marketingUpdatedBy: user, marketingUpdatedAt: now() };
-    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) }; persist(next); return next; });
+    let nextState: ContentStore | undefined;
+    setContent(prev => { 
+      nextState = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) }; 
+      return nextState; 
+    });
+    if (nextState) await persist(nextState, true);
   }, [persist]);
 
   const addPackage = useCallback(() => {

@@ -523,10 +523,16 @@ export default function PackageLP() {
     try { return JSON.parse(data); } catch { return fallback; }
   };
 
+  const sport = pkg.sportType || 'automobilismo';
+
+  const sportEventText = sport === 'futebol' ? 'da partida' : sport === 'tenis' ? 'do torneio' : sport === 'basquete' ? 'do jogo' : sport === 'lutas' ? 'da luta' : 'da corrida';
+  const sportAthletesText = sport === 'futebol' ? 'jogadores' : sport === 'tenis' ? 'tenistas' : sport === 'basquete' ? 'jogadores' : sport === 'lutas' ? 'lutadores' : 'pilotos';
+  const sportNameText = sport === 'futebol' ? 'futebol mundial' : sport === 'tenis' ? 'tênis mundial' : sport === 'basquete' ? 'basquete mundial' : sport === 'lutas' ? 'mundo das lutas' : 'automobilismo mundial';
+
   const programacao = parseJSON(pkg.programacaoData, [
-    { dia: 'SEXTA', data: '22 de maio', descricao: 'Acesso VIP aos treinos livres e atividades no paddock.' },
-    { dia: 'SÁBADO', data: '23 de maio', descricao: 'Acompanhe a qualificação com vista privilegiada.' },
-    { dia: 'DOMINGO', data: '24 de maio', descricao: 'O grande dia da corrida. Acesso premium e hospitalidade.' }
+    { dia: 'SEXTA', data: '22 de maio', descricao: 'Acesso VIP aos eventos e atividades preparatórias.' },
+    { dia: 'SÁBADO', data: '23 de maio', descricao: 'Acompanhe os momentos decisivos com vista privilegiada.' },
+    { dia: 'DOMINGO', data: '24 de maio', descricao: `O grande dia ${sportEventText}. Acesso premium e hospitalidade.` }
   ]);
 
   const pacotes = parseJSON(pkg.pacotesOptionsData, [
@@ -536,11 +542,9 @@ export default function PackageLP() {
 
   const cards = parseJSON(pkg.cardsData, [
     { titulo: 'Experiência Completa', descricao: 'Ingressos, hospedagem e transporte tudo em um único pacote cuidadosamente planejado.', icone: 'Zap' },
-    { titulo: 'Acesso Exclusivo', descricao: 'Áreas VIP, encontros com pilotos e experiências que não estão disponíveis ao público.', icone: 'Trophy' },
+    { titulo: 'Acesso Exclusivo', descricao: `Áreas VIP, encontros com ${sportAthletesText} e experiências que não estão disponíveis ao público.`, icone: 'Trophy' },
     { titulo: 'Suporte 24/7', descricao: 'Nossa equipe está disponível antes, durante e após o evento para garantir sua satisfação.', icone: 'Headset' }
   ]);
-
-  const sport = pkg.sportType || 'automobilismo';
 
   const theme = {
     primary: '#f7ad40',
@@ -598,7 +602,7 @@ export default function PackageLP() {
             {pkg.title || theme.heroTitle}
           </h1>
           <p style={{ fontSize: 'clamp(1.1rem, 2vw, 1.3rem)', lineHeight: 1.6, color: '#ccc', maxWidth: 650, margin: '0 auto 40px', fontWeight: 400 }}>
-            {pkg.description || 'Viva a emoção da corrida com um pacote completo: passagens aéreas, hospedagem e ingressos garantidos, além de experiências exclusivas que vão muito além da corrida.'}
+            {pkg.description || `Viva a emoção ${sportEventText} com um pacote completo: passagens aéreas, hospedagem e ingressos garantidos, além de experiências exclusivas que vão muito além do evento.`}
           </p>
           <button
             onClick={() => document.getElementById('pacotes')?.scrollIntoView({ behavior: 'smooth' })}
@@ -856,7 +860,7 @@ export default function PackageLP() {
           <p style={{ fontSize: 12, color: '#f7ad40', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Realizado por:</p>
           <h2 style={{ fontSize: isMobile ? '2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, color: '#fff', margin: '0 0 16px' }}>Uma Parceria de Referência</h2>
           <p style={{ fontSize: isMobile ? 15 : 18, color: '#aaa', maxWidth: 700, margin: '0 auto 40px', lineHeight: 1.6 }}>
-            Duas empresas líderes unidas para levar você ao espetáculo mais emocionante do automobilismo mundial.
+            Duas empresas líderes unidas para levar você ao espetáculo mais emocionante do {sportNameText}.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 30, textAlign: 'left' }}>
@@ -944,7 +948,7 @@ export default function PackageLP() {
           TORCIDA <span className="text-gold">PLACAR</span>
         </div>
         <p style={{ fontSize: isMobile ? 11 : 13, color: '#444', maxWidth: 800, margin: '0 auto', lineHeight: 1.6 }}>
-          © Todos os direitos reservados Mais Corporativo - 2026 - Não somos afiliados à IndyCar ou Penske Corporation. Somos apenas uma empresa de turismo que oferece pacotes para a corrida.
+          © Todos os direitos reservados Mais Corporativo - 2026 - {sport === 'automobilismo' ? 'Não somos afiliados à IndyCar ou Penske Corporation. Somos apenas uma empresa de turismo que oferece pacotes para a corrida.' : 'Somos uma agência de turismo corporativo especializada em pacotes para grandes eventos esportivos.'}
         </p>
       </footer>
 
