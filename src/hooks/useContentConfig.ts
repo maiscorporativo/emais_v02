@@ -141,16 +141,17 @@ export function useContentConfig() {
     if (isSaving.current) return;
     if (hasLocalUnsaved.current) return; // não sobrescrebe se há alterações locais não salvas
     try {
-      const res = await fetch('/api/content');
+      const res = await fetch(`/api/content?t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache' }});
       if (!res.ok) return;
       const json = await res.json();
-      const key = json.updated_at ?? JSON.stringify(json).slice(0, 40);
-      if (key === lastUpdated.current) return;
+      
+      const serverKey = json.updated_at || JSON.stringify(json).slice(0, 40);
+      if (serverKey === lastUpdated.current) return;
       
       // Secondary check: if local changes happened during the fetch, do NOT overwrite them!
       if (isSaving.current || hasLocalUnsaved.current) return;
 
-      lastUpdated.current = key;
+      lastUpdated.current = serverKey;
       const data: ContentStore = {
         events:         json.events         ?? DEFAULT_EVENTS,
         packages:       json.packages       ?? DEFAULT_PACKAGES,
@@ -197,7 +198,7 @@ export function useContentConfig() {
     hasLocalUnsaved.current = true;
     setContent(next);
     saveCache(next);
-    lastUpdated.current = JSON.stringify(next).slice(0, 40);
+    lastUpdated.current = 'local-edit';
 
     // Clear previous timeout to debounce the API call
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
