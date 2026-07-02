@@ -146,6 +146,10 @@ export function useContentConfig() {
       const json = await res.json();
       const key = json.updated_at ?? JSON.stringify(json).slice(0, 40);
       if (key === lastUpdated.current) return;
+      
+      // Secondary check: if local changes happened during the fetch, do NOT overwrite them!
+      if (isSaving.current || hasLocalUnsaved.current) return;
+
       lastUpdated.current = key;
       const data: ContentStore = {
         events:         json.events         ?? DEFAULT_EVENTS,
