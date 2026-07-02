@@ -185,161 +185,190 @@ export function useContentConfig() {
   }, [refetch]);
 
   /* ── Save helper ── */
-  const persist = useCallback(async (next: ContentStore) => {
-    // Merge imagens do localStorage para não perder dados salvos por outras instâncias do hook
-    // (ex: ImageAdmin salva imagem, MasterAdmin aprova sem ter carregado a imagem na sua instância)
-    const localCache = loadCache();
-    const merged: ContentStore = {
-      ...next,
-      packages: next.packages.map(pkg => {
-        // Se o pacote desta instância não tem imagem (undefined/null, NÃO string vazia),
-        // busca no cache local por createdAt
-        if (localCache && (pkg.img == null || pkg.badgeImg == null)) {
-          const cachedPkg = localCache.packages.find(p =>
-            pkg.createdAt ? p.createdAt === pkg.createdAt : (p.title === pkg.title && p.loc === pkg.loc)
-          );
-          if (cachedPkg) {
-            return {
-              ...pkg,
-              img:      pkg.img      ?? cachedPkg.img      ?? '',
-              badgeImg: pkg.badgeImg ?? cachedPkg.badgeImg ?? '',
-            };
-          }
-        }
-        return pkg;
-      }),
-    };
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  const persist = useCallback(async (next: ContentStore) => {
+    // We only update the local state immediately
     isSaving.current = true;
     hasLocalUnsaved.current = true;
-    setSaving(true);
-    setSaveError(false);
-    setContent(merged);
-    saveCache(merged);
-    lastUpdated.current = JSON.stringify(merged).slice(0, 40);
-    window.dispatchEvent(new Event(UPDATE_EVENT));
-    try {
-      const heroRaw = localStorage.getItem('emais_image_config');
-      const heroImages = heroRaw ? JSON.parse(heroRaw) : {};
-      await putContent({ ...merged, heroImages });
-      hasLocalUnsaved.current = false;
-      setSaveError(null);
-      bc?.postMessage('update');
-    } catch (err: any) {
-      console.warn('[useContentConfig] API save failed:', err);
-      setSaveError(err.message || 'Erro desconhecido ao salvar');
-      throw err;
-    } finally {
-      isSaving.current = false;
-      setSaving(false);
-    }
+    setContent(next);
+    saveCache(next);
+    lastUpdated.current = JSON.stringify(next).slice(0, 40);
+
+    // Clear previous timeout to debounce the API call
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+
+    saveTimeout.current = setTimeout(async () => {
+      setSaving(true);
+      setSaveError(false);
+
+      // We need to fetch the latest state from the ref/closure? No, we should use the `next` that was passed to the LAST persist call.
+      // Wait, if persist is called multiple times, the last `next` is the most recent state.
+      // So we can just use `next`.
+      
+      const localCache = loadCache();
+      const merged: ContentStore = {
+        ...next,
+        packages: next.packages.map(pkg => {
+          if (localCache && (pkg.img == null || pkg.badgeImg == null)) {
+            const cachedPkg = localCache.packages.find(p =>
+              pkg.createdAt ? p.createdAt === pkg.createdAt : (p.title === pkg.title && p.loc === pkg.loc)
+            );
+            if (cachedPkg) {
+              return {
+                ...pkg,
+                img:      pkg.img      ?? cachedPkg.img      ?? '',
+                badgeImg: pkg.badgeImg ?? cachedPkg.badgeImg ?? '',
+              };
+            }
+          }
+          return pkg;
+        }),
+      };
+
+      window.dispatchEvent(new Event(UPDATE_EVENT));
+      try {
+        const heroRaw = localStorage.getItem('emais_image_config');
+        const heroImages = heroRaw ? JSON.parse(heroRaw) : {};
+        await putContent({ ...merged, heroImages });
+        hasLocalUnsaved.current = false;
+        setSaveError(null);
+        bc?.postMessage('update');
+      } catch (err: any) {
+        console.warn('[useContentConfig] API save failed:', err);
+        setSaveError(err.message || 'Erro desconhecido ao salvar');
+      } finally {
+        isSaving.current = false;
+        setSaving(false);
+      }
+    }, 1000); // 1s debounce
   }, []);
 
   /* ── Events ── */
   const updateEvent = useCallback((i: number, d: Partial<EventHighlight>) =>
-    persist({ ...content, events: content.events.map((e, idx) => idx === i ? { ...e, ...d, status: 'pending' } : e) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, events: prev.events.map((e, idx) => idx === i ? { ...e, ...d, status: 'pending' as const } : e) }; persist(next); return next; }), [persist]);
 
   const approveEvent = useCallback((i: number) =>
-    persist({ ...content, events: content.events.map((e, idx) => idx === i ? { ...e, status: 'approved' } : e) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, events: prev.events.map((e, idx) => idx === i ? { ...e, status: 'approved' as const } : e) }; persist(next); return next; }), [persist]);
 
   const rejectEvent = useCallback((i: number) =>
-    persist({ ...content, events: content.events.map((e, idx) => idx === i ? { ...e, status: 'rejected' } : e) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, events: prev.events.map((e, idx) => idx === i ? { ...e, status: 'rejected' as const } : e) }; persist(next); return next; }), [persist]);
 
   const masterUpdateEvent = useCallback((i: number, d: Partial<EventHighlight>) =>
-    persist({ ...content, events: content.events.map((e, idx) => idx === i ? { ...e, ...d } : e) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, events: prev.events.map((e, idx) => idx === i ? { ...e, ...d } : e) }; persist(next); return next; }), [persist]);
 
   const addEvent = useCallback(() =>
-    persist({ ...content, events: [...content.events, { title: 'Novo Evento', location: 'Local', date: 'Data', img: '' }] }), [content, persist]);
+    setContent(prev => { const next = { ...prev, events: [...prev.events, { title: 'Novo Evento', location: 'Local', date: 'Data', img: '' }] }; persist(next); return next; }), [persist]);
 
   const removeEvent = useCallback((i: number) =>
-    persist({ ...content, events: content.events.filter((_, idx) => idx !== i) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, events: prev.events.filter((_, idx) => idx !== i) }; persist(next); return next; }), [persist]);
 
   const reorderEvent = useCallback((from: number, to: number) => {
-    const arr = [...content.events];
-    const [item] = arr.splice(from, 1);
-    arr.splice(to, 0, item);
-    return persist({ ...content, events: arr });
-  }, [content, persist]);
+    setContent(prev => {
+      const arr = [...prev.events];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      const next = { ...prev, events: arr };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   /* ── Packages ── */
   const updatePackage = useCallback((i: number, d: Partial<TrendingPackage>) => {
     const user = getAdminUser();
     const audit = { updatedBy: user, updatedAt: now(), status: 'pending' as const };
-    return persist({ ...content, packages: content.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) });
-  }, [content, persist]);
+    setContent(prev => {
+      const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   const setPackageTrending = useCallback((i: number, isTrending: boolean) =>
-    persist({ ...content, packages: content.packages.map((p, idx) => idx === i ? { ...p, isTrending } : p) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, isTrending } : p) }; persist(next); return next; }), [persist]);
 
   const approvePackage = useCallback((i: number) => {
     const user = getMasterUser();
-    return persist({ ...content, packages: content.packages.map((p, idx) => idx === i ? { ...p, status: 'approved', approvedBy: user, approvedAt: now(), rejectedBy: undefined, rejectedAt: undefined } : p) });
-  }, [content, persist]);
+    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, status: 'approved' as const, approvedBy: user, approvedAt: now(), rejectedBy: undefined, rejectedAt: undefined } : p) }; persist(next); return next; });
+  }, [persist]);
 
   const rejectPackage = useCallback((i: number) => {
     const user = getMasterUser();
-    return persist({ ...content, packages: content.packages.map((p, idx) => idx === i ? { ...p, status: 'rejected', rejectedBy: user, rejectedAt: now(), approvedBy: undefined, approvedAt: undefined } : p) });
-  }, [content, persist]);
+    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, status: 'rejected' as const, rejectedBy: user, rejectedAt: now(), approvedBy: undefined, approvedAt: undefined } : p) }; persist(next); return next; });
+  }, [persist]);
 
   const masterUpdatePackage = useCallback((i: number, d: Partial<TrendingPackage>) => {
     const user = getMasterUser();
     const audit = { status: 'approved' as const, approvedBy: user, approvedAt: now() };
-    return persist({ ...content, packages: content.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) });
-  }, [content, persist]);
+    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) }; persist(next); return next; });
+  }, [persist]);
 
   const marketingUpdatePackage = useCallback((i: number, d: Partial<TrendingPackage>) => {
     const user = getMarketingUser();
     const audit = { marketingUpdatedBy: user, marketingUpdatedAt: now() };
-    return persist({ ...content, packages: content.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) });
-  }, [content, persist]);
+    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) }; persist(next); return next; });
+  }, [persist]);
 
   const addPackage = useCallback(() => {
     const user = getAdminUser();
-    return persist({ ...content, packages: [...content.packages, { tag: 'NOVO', title: 'Novo Pacote', loc: 'Local', date: 'Data', price: '0', img: '', badge: 'novo', description: '', flightDetails: '', hotelDetails: '', ticketDetails: '', createdBy: user, createdAt: now() }] });
-  }, [content, persist]);
+    setContent(prev => {
+      const next = { ...prev, packages: [...prev.packages, { tag: 'NOVO', title: 'Novo Pacote', loc: 'Local', date: 'Data', price: '0', img: '', badge: 'novo', description: '', flightDetails: '', hotelDetails: '', ticketDetails: '', createdBy: user, createdAt: now() }] };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   const removePackage = useCallback((i: number, deletedBy?: string) => {
     const user = deletedBy || getAdminUser();
-    return persist({ ...content, packages: content.packages.map((p, idx) =>
-      idx === i ? { ...p, deletedAt: now(), deletedBy: user } : p
-    )});
-  }, [content, persist]);
+    setContent(prev => {
+      const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, deletedAt: now(), deletedBy: user } : p) };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   const restorePackage = useCallback((i: number) =>
-    persist({ ...content, packages: content.packages.map((p, idx) =>
-      idx === i ? { ...p, deletedAt: undefined, deletedBy: undefined } : p
-    )}), [content, persist]);
+    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, deletedAt: undefined, deletedBy: undefined } : p) }; persist(next); return next; }), [persist]);
 
   const permanentRemovePackage = useCallback((i: number) =>
-    persist({ ...content, packages: content.packages.filter((_, idx) => idx !== i) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, packages: prev.packages.filter((_, idx) => idx !== i) }; persist(next); return next; }), [persist]);
 
   const reorderPackage = useCallback((from: number, to: number) => {
-    const arr = [...content.packages];
-    const [item] = arr.splice(from, 1);
-    arr.splice(to, 0, item);
-    return persist({ ...content, packages: arr });
-  }, [content, persist]);
+    setContent(prev => {
+      const arr = [...prev.packages];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      const next = { ...prev, packages: arr };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   /* ── Categories ── */
   const addCategory = useCallback((name: string) =>
-    persist({ ...content, categories: [...content.categories, name.trim()] }), [content, persist]);
+    setContent(prev => { const next = { ...prev, categories: [...prev.categories, name.trim()] }; persist(next); return next; }), [persist]);
 
   const removeCategory = useCallback((i: number) =>
-    persist({ ...content, categories: content.categories.filter((_, idx) => idx !== i) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, categories: prev.categories.filter((_, idx) => idx !== i) }; persist(next); return next; }), [persist]);
 
   const updateCategory = useCallback((i: number, name: string) =>
-    persist({ ...content, categories: content.categories.map((c, idx) => idx === i ? name.trim() : c) }), [content, persist]);
+    setContent(prev => { const next = { ...prev, categories: prev.categories.map((c, idx) => idx === i ? name.trim() : c) }; persist(next); return next; }), [persist]);
 
   const reorderCategory = useCallback((from: number, to: number) => {
-    const arr = [...content.categories];
-    const [item] = arr.splice(from, 1);
-    arr.splice(to, 0, item);
-    return persist({ ...content, categories: arr });
-  }, [content, persist]);
+    setContent(prev => {
+      const arr = [...prev.categories];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      const next = { ...prev, categories: arr };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   /* ── Category Icons ── */
   const updateCategoryIcon = useCallback((name: string, icon: string) =>
-    persist({ ...content, categoryIcons: { ...content.categoryIcons, [name]: icon } }), [content, persist]);
+    setContent(prev => { const next = { ...prev, categoryIcons: { ...prev.categoryIcons, [name]: icon } }; persist(next); return next; }), [persist]);
 
   /* ── Global ── */
   const resetAll = useCallback(async () => {

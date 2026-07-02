@@ -816,6 +816,7 @@ function PackageCard({ pkg, index, total, trendingCount, categories, onUpdate, o
                 <DateRangeField value={pkg.date} onChange={v => onUpdate({ date: v })} />
                 <PriceMaskInput price={pkg.price} currency={pkg.currency || 'BRL'} onPriceChange={v => onUpdate({ price: v })} />
                 <CurrencySelect value={pkg.currency || 'BRL'} onChange={v => onUpdate({ currency: v })} />
+                <Field label="Parcelas (ex: 10)" icon={<DollarSign size={11} />} value={pkg.installments || ''} onChange={v => onUpdate({ installments: v })} />
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: '#737373', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}><Award size={11} /> Tag do Card</label>

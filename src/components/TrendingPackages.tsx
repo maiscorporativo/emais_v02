@@ -4,7 +4,7 @@ import type { TrendingPackage } from '../types';
 import Reveal from './Reveal';
 import PackageModal from './PackageModal';
 import { useContentConfig } from '../hooks/useContentConfig';
-import { getCurrencySymbol, formatDisplayPrice } from '../utils/currency';
+import { formatInstallmentPrice } from '../utils/currency';
 
 
 
@@ -86,7 +86,7 @@ export default function TrendingPackages() {
                   <div className="border-t border-neutral-100 pt-4 flex flex-col">
                     <span className="text-[11px] text-neutral-500 uppercase tracking-wider font-semibold">Pacotes a partir de</span>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="font-semibold text-lg">{getCurrencySymbol(pkg.currency || 'BRL')} {formatDisplayPrice(pkg.price, pkg.currency || 'BRL')}</span>
+                      <span className="font-semibold text-lg">{formatInstallmentPrice(pkg.price, pkg.installments, pkg.currency || 'BRL')}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleNavigate(pkg.originalIndex); }}
                         className="text-sm font-semibold text-gold hover:text-black transition-colors flex items-center gap-1"

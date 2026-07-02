@@ -4,7 +4,7 @@ import type { TrendingPackage } from '../types';
 import { useState } from 'react';
 import { useContentConfig } from '../hooks/useContentConfig';
 import Reveal from './Reveal';
-import { getCurrencySymbol, formatDisplayPrice } from '../utils/currency';
+import { getCurrencySymbol, formatDisplayPrice, formatInstallmentPrice } from '../utils/currency';
 
 /* ── Category icons/emojis ── */
 const CATEGORY_ICONS: Record<string, string> = {
@@ -51,7 +51,7 @@ function PackageCard({ pkg, onClick }: { pkg: TrendingPackage & { originalIndex:
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] text-neutral-500 uppercase tracking-wider">a partir de</p>
-            <p className="text-gold font-bold text-lg">{getCurrencySymbol(curr)} {formatDisplayPrice(pkg.price, curr)}</p>
+            <p className="text-gold font-bold text-lg">{formatInstallmentPrice(pkg.price, pkg.installments, curr)}</p>
           </div>
           <div className="w-8 h-8 rounded-full bg-gold/10 group-hover:bg-gold flex items-center justify-center transition-all duration-300">
             <ArrowRight size={14} className="text-gold group-hover:text-black transition-colors" />

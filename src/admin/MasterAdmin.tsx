@@ -254,9 +254,10 @@ function PackageReviewCard({ pkg, onApprove, onReject, onUpdate, onRemove, trend
             <MField label="Data"     icon={<CalendarDays size={11} />} value={local.date}  onChange={v => set({ date: v })} />
           </div>
 
-          {/* Row 2: preço / moeda */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {/* Row 2: preço / moeda / parcelas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <MField label="Preço" icon={<DollarSign size={11} />} value={local.price} onChange={v => set({ price: v })} />
+            <MField label="Parcelas (ex: 10)" icon={<DollarSign size={11} />} value={local.installments || ''} onChange={v => set({ installments: v })} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 10, color: '#737373', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 }}><Globe2 size={11} /> Moeda</label>
               <select value={local.currency || 'BRL'} onChange={e => set({ currency: e.target.value })}

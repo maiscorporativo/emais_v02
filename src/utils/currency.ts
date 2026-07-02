@@ -34,3 +34,17 @@ export function formatDisplayPrice(rawPrice: string, currencyCode: string): stri
   const locale = CURRENCY_LOCALES[currencyCode] || 'pt-BR';
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(num);
 }
+
+export function formatInstallmentPrice(rawPrice: string, installments: string | undefined, currencyCode: string): string {
+  if (!installments || isNaN(parseInt(installments, 10)) || parseInt(installments, 10) <= 0) {
+    return `${getCurrencySymbol(currencyCode)} ${formatDisplayPrice(rawPrice, currencyCode)}`;
+  }
+  const digits = rawPrice.replace(/\D/g, '');
+  if (!digits) return `${getCurrencySymbol(currencyCode)} ${rawPrice}`;
+  const num = parseInt(digits, 10);
+  const inst = parseInt(installments, 10);
+  const divided = num / inst;
+  const locale = CURRENCY_LOCALES[currencyCode] || 'pt-BR';
+  const formatted = new Intl.NumberFormat(locale, { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(divided);
+  return `${inst}x de ${getCurrencySymbol(currencyCode)} ${formatted}`;
+}

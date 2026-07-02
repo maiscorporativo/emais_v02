@@ -22,6 +22,7 @@ export interface TrendingPackage {
   date: string;
   price: string;
   currency?: string;
+  installments?: string;
   img: string;
   badge: string;
   badgeImg?: string;
