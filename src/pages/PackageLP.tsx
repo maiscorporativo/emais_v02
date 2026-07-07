@@ -29,6 +29,12 @@ const getYoutubeEmbedUrl = (url: string) => {
 const fixImgPath = (path: string | undefined) => {
   if (!path) return '';
   if (path.startsWith('http') || path.startsWith('/') || path.startsWith('data:')) return path;
+  
+  // Se for um arquivo de upload gerado pelo multer (começa com timestamp de 13 dígitos e um traço)
+  if (/^\d{13}-/.test(path)) {
+    return `/uploads/${path}`;
+  }
+  
   return `/${path}`;
 };
 
