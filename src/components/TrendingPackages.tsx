@@ -69,12 +69,12 @@ export default function TrendingPackages() {
                   <div className="absolute top-4 right-4 z-10 bg-gold text-black backdrop-blur text-[10px] font-bold px-2 py-1 rounded tracking-wider shadow-sm">
                     {pkg.tag}
                   </div>
-                  <img src={pkg.img} alt={`Pacote ${pkg.title} em ${pkg.loc}`} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img src={pkg.img?.match(/^\d{13}-/) ? `/uploads/${pkg.img}` : (pkg.img?.startsWith('http') || pkg.img?.startsWith('/') ? pkg.img : `/${pkg.img}`)} alt={`Pacote ${pkg.title} em ${pkg.loc}`} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </div>
                 {/* Badge logo */}
                 <div className="absolute bottom-auto top-[calc(12rem-1.25rem)] left-4 w-12 h-12 bg-white rounded-md shadow-md flex items-center justify-center p-1.5 z-20">
                   {pkg.badgeImg
-                    ? <img src={pkg.badgeImg} alt={pkg.badge} className="w-full h-full object-contain" />
+                    ? <img src={pkg.badgeImg?.match(/^\d{13}-/) ? `/uploads/${pkg.badgeImg}` : (pkg.badgeImg?.startsWith('http') || pkg.badgeImg?.startsWith('/') ? pkg.badgeImg : `/${pkg.badgeImg}`)} alt={pkg.badge} className="w-full h-full object-contain" />
                     : <span className="text-[10px] font-bold uppercase">{pkg.badge}</span>
                   }
                 </div>
