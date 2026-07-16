@@ -4,7 +4,8 @@ import type { TrendingPackage } from '../types';
 import { useState } from 'react';
 import { useContentConfig } from '../hooks/useContentConfig';
 import Reveal from './Reveal';
-import { getCurrencySymbol, formatDisplayPrice, formatInstallmentPrice } from '../utils/currency';
+import { formatInstallmentPrice } from '../utils/currency';
+import { appendCurrentQuery } from '../utils/slug';
 
 /* ── Category icons/emojis ── */
 const CATEGORY_ICONS: Record<string, string> = {
@@ -75,9 +76,13 @@ function CategoryAccordion({
   const navigate = useNavigate();
   const displayIcon = iconEmoji || CATEGORY_ICONS[category] || '🎟️';
 
-  const handleNavigate = (idx: number) => {
-    navigate(`/pacote/${idx}`);
-    window.scrollTo(0, 0);
+  const handleNavigate = (idx: number, externalUrl?: string, slug?: string) => {
+    if (externalUrl && externalUrl.trim() !== '') {
+      window.location.href = appendCurrentQuery(externalUrl.trim());
+    } else {
+      navigate(`/pacote/${slug || idx}`);
+      window.scrollTo(0, 0);
+    }
   };
 
   return (
@@ -106,7 +111,7 @@ function CategoryAccordion({
       >
         <div className="px-6 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 border-t border-white/5 pt-5">
           {packages.map((pkg) => (
-            <PackageCard key={pkg.originalIndex} pkg={pkg} onClick={() => handleNavigate(pkg.originalIndex)} />
+            <PackageCard key={pkg.originalIndex} pkg={pkg} onClick={() => handleNavigate(pkg.originalIndex, pkg.externalUrl, pkg.slug)} />
           ))}
         </div>
       </div>

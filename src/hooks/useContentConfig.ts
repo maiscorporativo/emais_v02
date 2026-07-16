@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { EventHighlight, TrendingPackage } from '../types';
+import { slugify, uniqueSlug } from '../utils/slug';
 import {
   DEFAULT_EVENTS,
   DEFAULT_PACKAGES,
@@ -190,7 +191,7 @@ export function useContentConfig() {
   }, [refetch]);
 
   /* ── Save helper ── */
-  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persist = useCallback(async (next: ContentStore, immediate = false): Promise<void> => {
     // We only update the local state immediately
@@ -202,7 +203,7 @@ export function useContentConfig() {
 
     const executeSave = async () => {
       setSaving(true);
-      setSaveError(false);
+      setSaveError(null);
 
       const localCache = loadCache();
       const merged: ContentStore = {
@@ -291,7 +292,15 @@ export function useContentConfig() {
     const audit = { updatedBy: user, updatedAt: now(), status: 'pending' as const };
     let nextState: ContentStore | undefined;
     setContent(prev => {
-      nextState = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...d, ...audit } : p) };
+      const patch = { ...d };
+      // Slug automático: acompanha o título enquanto não for personalizado manualmente
+      const src = prev.packages[i];
+      if (src && patch.title !== undefined && patch.slug === undefined) {
+        if (!src.slug || src.slug === slugify(src.title)) {
+          patch.slug = uniqueSlug(slugify(patch.title), prev.packages.filter((_, j) => j !== i).map(p => p.slug || ''));
+        }
+      }
+      nextState = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, ...patch, ...audit } : p) };
       return nextState;
     });
     if (nextState) await persist(nextState);
@@ -336,6 +345,34 @@ export function useContentConfig() {
     const user = getAdminUser();
     setContent(prev => {
       const next = { ...prev, packages: [...prev.packages, { tag: 'NOVO', title: 'Novo Pacote', loc: 'Local', date: 'Data', price: '0', img: '', badge: 'novo', description: '', flightDetails: '', hotelDetails: '', ticketDetails: '', createdBy: user, createdAt: now() }] };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
+
+  /** Duplica um pacote com TODO o conteúdo da LP (hero, cards, programação,
+   *  pacotes/tipos, experiência, banco de imagens, template de esporte, integrações).
+   *  A cópia nasce pendente, fora de "Em Alta" e com auditoria zerada. */
+  const duplicatePackage = useCallback((i: number) => {
+    const user = getAdminUser();
+    setContent(prev => {
+      const src = prev.packages[i];
+      if (!src) return prev;
+      const copy: TrendingPackage = {
+        ...src,
+        title: `${src.title} (cópia)`,
+        slug: src.slug ? uniqueSlug(`${src.slug}-copia`, prev.packages.map(p => p.slug || '')) : undefined,
+        status: 'pending',
+        isTrending: false,
+        createdBy: user, createdAt: now(),
+        updatedBy: undefined, updatedAt: undefined,
+        approvedBy: undefined, approvedAt: undefined,
+        rejectedBy: undefined, rejectedAt: undefined,
+        deletedAt: undefined, deletedBy: undefined,
+      };
+      const arr = [...prev.packages];
+      arr.splice(i + 1, 0, copy);
+      const next = { ...prev, packages: arr };
       persist(next);
       return next;
     });
@@ -416,7 +453,7 @@ export function useContentConfig() {
     loading, saving, saveError,
     updateEvent, addEvent, removeEvent, reorderEvent,
     approveEvent, rejectEvent, masterUpdateEvent,
-    updatePackage, addPackage, removePackage, restorePackage, permanentRemovePackage, reorderPackage,
+    updatePackage, addPackage, duplicatePackage, removePackage, restorePackage, permanentRemovePackage, reorderPackage,
     approvePackage, rejectPackage, masterUpdatePackage, marketingUpdatePackage, setPackageTrending,
     addCategory, removeCategory, updateCategory, reorderCategory, updateCategoryIcon,
     resetAll, exportConfig, importConfig,

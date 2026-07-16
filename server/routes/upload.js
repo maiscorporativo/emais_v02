@@ -30,8 +30,13 @@ async function requireAuth(req, res, next) {
 }
 
 
-/* ── Garante que a pasta uploads/ existe ── */
-const uploadsDir = path.join(__dirname, '..', '..', 'public', 'uploads');
+/* ── Pasta de uploads ──────────────────────────────────────────────
+   Em produção, defina UPLOADS_DIR (caminho absoluto FORA da pasta de
+   deploy) para que as imagens sobrevivam a novas implantações.
+   Sem UPLOADS_DIR, usa public/uploads (comportamento padrão em dev). */
+export const uploadsDir = process.env.UPLOADS_DIR
+  ? path.resolve(process.env.UPLOADS_DIR)
+  : path.join(__dirname, '..', '..', 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }

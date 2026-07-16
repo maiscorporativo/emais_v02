@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  CheckCircle2, Plane, BedDouble, Ticket,
-  MapPin, Calendar, ChevronDown, Users,
+  CheckCircle2, Calendar, Users,
   MessageCircle, AlertTriangle, Zap, Trophy, Headset, ChevronRight
 } from 'lucide-react';
 import { useContentConfig } from '../hooks/useContentConfig';
 import type { TrendingPackage } from '../types';
+import { appendCurrentQuery } from '../utils/slug';
 
 // Helper to convert YouTube URL to Embed URL
 const getYoutubeEmbedUrl = (url: string) => {
@@ -57,91 +57,6 @@ const injectScript = (id: string, content: string, target: 'head' | 'body' = 'he
     else document.body.prepend(wrapper);
   } catch (err) { console.error('Script injection failed:', err); }
 };
-
-/* --- Hodômetro (Speedometer) Component --- */
-function Speedometer() {
-  const [speed, setSpeed] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const scrollPercent = scrollTop / docHeight;
-      // Max speed = 350
-      setSpeed(Math.min(350, Math.max(0, Math.floor(scrollPercent * 350))));
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // init
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Calculate rotation (-130deg to +130deg)
-  const rotation = -130 + (speed / 350) * 260;
-
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: '30px',
-      right: '30px',
-      width: '120px',
-      height: '120px',
-      background: 'radial-gradient(circle, #002b52 0%, #001529 100%)',
-      borderRadius: '50%',
-      border: '2px solid #333',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.8), inset 0 0 20px rgba(228,60,68,0.2)',
-      zIndex: 9999,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      pointerEvents: 'none'
-    }}>
-      {/* Ticks */}
-      {[...Array(11)].map((_, i) => (
-        <div key={i} style={{
-          position: 'absolute',
-          width: i % 2 === 0 ? '4px' : '2px',
-          height: i % 2 === 0 ? '12px' : '8px',
-          background: i > 7 ? '#f7ad40' : '#555',
-          top: '4px',
-          left: '50%',
-          transformOrigin: '50% 56px',
-          transform: `translateX(-50%) rotate(${-130 + (i * 26)}deg)`
-        }} />
-      ))}
-      {/* Needle */}
-      <div style={{
-        position: 'absolute',
-        width: '4px',
-        height: '50px',
-        background: 'linear-gradient(to top, transparent, #f7ad40)',
-        bottom: '50%',
-        left: 'calc(50% - 2px)',
-        transformOrigin: 'bottom center',
-        transform: `rotate(${rotation}deg)`,
-        transition: 'transform 0.1s ease-out'
-      }} />
-      {/* Center dot */}
-      <div style={{
-        position: 'absolute',
-        width: '12px',
-        height: '12px',
-        background: '#f7ad40',
-        borderRadius: '50%',
-        top: 'calc(50% - 6px)',
-        left: 'calc(50% - 6px)',
-        boxShadow: '0 0 10px rgba(228,60,68,0.8)'
-      }} />
-
-      {/* Speed text */}
-      <div style={{ position: 'absolute', bottom: '15px', textAlign: 'center' }}>
-        <div style={{ fontSize: '24px', fontWeight: 900, color: '#fff', lineHeight: '1' }}>{speed}</div>
-        <div style={{ fontSize: '10px', fontWeight: 800, color: '#f7ad40', letterSpacing: '1px' }}>KM/H</div>
-      </div>
-    </div>
-  );
-}
 
 /* --- Football Kick Animation Component --- */
 /* --- Sport Ball Scroll Animation Component --- */
@@ -349,7 +264,6 @@ export default function PackageLP() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState(0); // Para a seção de Programação
-  const [activePkgTab, setActivePkgTab] = useState(0); // Para a seção de Pacotes
   const [pricingMode, setPricingMode] = useState<'individual' | 'duplo'>('duplo');
   const mauticContainerRef = useRef<HTMLDivElement>(null);
 
@@ -361,11 +275,18 @@ export default function PackageLP() {
 
   useEffect(() => {
     if (!loading && packages.length > 0) {
-      const index = Number(id);
-      const p = packages[index];
+      // Resolve por slug (URL permanente) e, se for numérico, pelo índice (links antigos)
+      const raw = (id || '').toLowerCase();
+      let p = packages.find(pk => (pk.slug || '').toLowerCase() === raw);
+      if (!p && /^\d+$/.test(raw)) p = packages[Number(raw)];
       if (!p) { setNotFound(true); return; }
       if (p.status !== 'approved' && !localStorage.getItem('emais_marketing_auth')) {
         navigate('/');
+        return;
+      }
+      if (p.externalUrl && p.externalUrl.trim() !== '') {
+        // Repassa UTMs/fbclid/gclid da URL atual para a LP externa
+        window.location.href = appendCurrentQuery(p.externalUrl.trim());
         return;
       }
       setPkg(p);
@@ -571,8 +492,7 @@ export default function PackageLP() {
   return (
     <div style={{ background: '#001529', color: '#fff', fontFamily: 'Montserrat, sans-serif', minHeight: '100vh', overflowX: 'hidden' }}>
       <PackageNavbar onBook={() => document.getElementById('conversion-section')?.scrollIntoView({ behavior: 'smooth' })} isMobile={isMobile} />
-      {/* {sport === 'automobilismo' && <Speedometer />} */}
-      {(sport === 'futebol' || sport === 'tenis' || sport === 'basquete' || sport === 'lutas' || sport === 'automobilismo') && <SportBall sport={sport} isMobile={isMobile} />}
+      {(sport === 'futebol' || sport === 'tenis' || sport === 'basquete' || sport === 'lutas' || sport === 'automobilismo') && <SportBall sport={sport} />}
 
       {/* --- HERO SECTION --- */}
       <section style={{ position: 'relative', height: '100vh', minHeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>

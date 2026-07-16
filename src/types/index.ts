@@ -18,6 +18,7 @@ export interface EventHighlight {
 export interface TrendingPackage {
   tag: string;
   title: string;
+  slug?: string; // URL permanente da LP: /pacote/<slug> (único; gerado do título, editável no admin)
   loc: string;
   date: string;
   price: string;
@@ -49,6 +50,7 @@ export interface TrendingPackage {
   webhookClint?: string;
   mauticFormCode?: string;
   redirectUrl?: string;
+  externalUrl?: string; // Link externo para pular a Landing Page interna
   marketingUpdatedAt?: string;
   marketingUpdatedBy?: string;
   /* ── Enhanced Marketing fields ── */
