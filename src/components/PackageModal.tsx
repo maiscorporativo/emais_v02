@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plane, BedDouble, Ticket, X } from 'lucide-react';
 import type { TrendingPackage } from '../types';
-import { getCurrencySymbol, formatDisplayPrice } from '../utils/currency';
+import { getCurrencySymbol, formatDisplayPrice, hasPrice, PRICE_ON_REQUEST } from '../utils/currency';
 
 /* ── Helper: detail row ─────────────────────────────────────── */
 function DetailRow({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
@@ -190,12 +190,12 @@ export default function PackageModal({ isOpen, onClose, pkg }: PackageModalProps
               position: 'sticky', top: 16,
             }}>
               <p style={{ fontSize: 11, color: '#9ca3af', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 6px' }}>
-                Valor Estimado
+                {hasPrice(pkg.price) ? 'Valor Estimado' : 'Valores'}
               </p>
-              <div style={{ fontSize: 30, fontWeight: 800, color: '#002042', margin: '0 0 4px', lineHeight: 1.1 }}>
-                {getCurrencySymbol(pkg.currency || 'BRL')} {formatDisplayPrice(pkg.price, pkg.currency || 'BRL')}
+              <div style={{ fontSize: hasPrice(pkg.price) ? 30 : 22, fontWeight: 800, color: '#002042', margin: '0 0 4px', lineHeight: 1.1 }}>
+                {hasPrice(pkg.price) ? `${getCurrencySymbol(pkg.currency || 'BRL')} ${formatDisplayPrice(pkg.price, pkg.currency || 'BRL')}` : PRICE_ON_REQUEST}
               </div>
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>por pessoa</span>
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>{hasPrice(pkg.price) ? 'por pessoa' : 'fale com um consultor'}</span>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 24 }}>
                 <a

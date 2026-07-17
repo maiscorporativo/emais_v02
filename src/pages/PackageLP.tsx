@@ -7,6 +7,7 @@ import {
 import { useContentConfig } from '../hooks/useContentConfig';
 import type { TrendingPackage } from '../types';
 import { appendCurrentQuery } from '../utils/slug';
+import { hasPrice, PRICE_ON_REQUEST } from '../utils/currency';
 
 // Helper to convert YouTube URL to Embed URL
 const getYoutubeEmbedUrl = (url: string) => {
@@ -636,7 +637,11 @@ export default function PackageLP() {
             <h2 style={{ fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: 900, margin: '0 0 16px' }}>Pacotes de <span style={{ color: '#f7ad40' }}>Viagem Completos</span></h2>
             <p style={{ fontSize: 16, color: '#aaa', maxWidth: 600, margin: '0 auto' }}>Voe com tudo incluído. Hospedagem, transporte e ingressos em um único pacote.</p>
 
-            {/* Pricing Toggle */}
+            {/* Pricing Toggle — oculto quando nenhuma opção tem preço (Valor sob consulta) */}
+            {(() => {
+              const opts = pacotes && !Array.isArray(pacotes) ? (pacotes.opcoes_hospedagem || []) : (Array.isArray(pacotes) ? pacotes : []);
+              return opts.some((op: any) => hasPrice(op.valor_individual) || hasPrice(op.valor_duplo) || hasPrice(op.valor_parcela) || hasPrice(op.preço));
+            })() && (
             <div style={{ marginTop: 40, display: 'inline-flex', background: '#002042', padding: 6, borderRadius: 100, border: '1px solid #003866' }}>
               <button
                 onClick={() => setPricingMode('individual')}
@@ -659,6 +664,7 @@ export default function PackageLP() {
                 Quarto Duplo
               </button>
             </div>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
@@ -689,12 +695,21 @@ export default function PackageLP() {
                     <p style={{ color: '#888', fontSize: 14, lineHeight: 1.5, marginBottom: 24 }}>{op.descricao_card || 'Experiência completa com todo o conforto e exclusividade.'}</p>
 
                     <div style={{ borderTop: '1px solid #003866', borderBottom: '1px solid #003866', margin: '0 0 32px', padding: '24px 0' }}>
-                      <div style={{ fontSize: 13, color: '#666', fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 }}>{parcelas}x de</div>
-                      <div style={{ fontSize: isMobile ? 28 : 40, fontWeight: 900, color: i === 0 ? '#f7ad40' : '#fbbf24', display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: isMobile ? 16 : 20 }}>{op.moeda || 'USD'}</span>
-                        <span style={{ fontSize: isMobile ? 32 : 48 }}>{price || op.valor_parcela || op.preço || '---'}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#555', marginTop: 8 }}>por pessoa em quarto {pricingMode}</div>
+                      {hasPrice(price || op.valor_parcela || op.preço) ? (
+                        <>
+                          <div style={{ fontSize: 13, color: '#666', fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 }}>{parcelas}x de</div>
+                          <div style={{ fontSize: isMobile ? 28 : 40, fontWeight: 900, color: i === 0 ? '#f7ad40' : '#fbbf24', display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: isMobile ? 16 : 20 }}>{op.moeda || 'USD'}</span>
+                            <span style={{ fontSize: isMobile ? 32 : 48 }}>{price || op.valor_parcela || op.preço || '---'}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: '#555', marginTop: 8 }}>por pessoa em quarto {pricingMode}</div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, color: i === 0 ? '#f7ad40' : '#fbbf24' }}>{PRICE_ON_REQUEST}</div>
+                          <div style={{ fontSize: 11, color: '#555', marginTop: 8 }}>fale com um consultor para condições e valores</div>
+                        </>
+                      )}
                     </div>
 
                     <div style={{ flex: 1, marginBottom: 32 }}>

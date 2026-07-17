@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import Reveal from './Reveal';
 import { useContentConfig } from '../hooks/useContentConfig';
-import { formatInstallmentPrice } from '../utils/currency';
+import { formatInstallmentPrice, hasPrice, PRICE_ON_REQUEST } from '../utils/currency';
 import { appendCurrentQuery } from '../utils/slug';
 
 
@@ -87,9 +87,9 @@ export default function TrendingPackages() {
                     <div>{pkg.date} | {pkg.loc}</div>
                   </div>
                   <div className="border-t border-neutral-100 pt-4 flex flex-col">
-                    <span className="text-[11px] text-neutral-500 uppercase tracking-wider font-semibold">Pacotes a partir de</span>
+                    <span className="text-[11px] text-neutral-500 uppercase tracking-wider font-semibold">{hasPrice(pkg.price) ? 'Pacotes a partir de' : 'Fale com um consultor'}</span>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="font-semibold text-lg">{formatInstallmentPrice(pkg.price, pkg.installments, pkg.currency || 'BRL')}</span>
+                      <span className="font-semibold text-lg">{hasPrice(pkg.price) ? formatInstallmentPrice(pkg.price, pkg.installments, pkg.currency || 'BRL') : PRICE_ON_REQUEST}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleNavigate(pkg.originalIndex, pkg.externalUrl, pkg.slug); }}
                         className="text-sm font-semibold text-gold hover:text-black transition-colors flex items-center gap-1"

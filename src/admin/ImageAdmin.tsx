@@ -630,6 +630,7 @@ function PriceMaskInput({
           onBlur={e => { e.target.style.borderColor = '#333333'; }}
         />
       </div>
+      <span style={{ fontSize: 10, color: '#4ade80' }}>Vazio ou zero = site exibe "Valor sob consulta"</span>
     </div>
   );
 }
