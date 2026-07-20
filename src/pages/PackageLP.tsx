@@ -202,7 +202,7 @@ function SportBall({ sport }: { sport: string }) {
             objectFit: 'contain',
             transform: isMobile
               ? `${sport === 'futebol' ? 'translate(100px, 60px)' : sport === 'tenis' ? 'translate(50px, 100px)' : sport === 'basquete' ? 'translate(65px, -65px)' : ''} rotate(${rotation}deg)`
-              : `${sport === 'futebol' ? 'translate(300px, 180px)' : sport === 'tenis' ? 'translate(150px, 260px)' : sport === 'basquete' ? 'translate(160px, -230px)' : ''} rotate(${rotation}deg)`,
+              : `${sport === 'futebol' ? 'translate(295px, 175px)' : sport === 'tenis' ? 'translate(150px, 260px)' : sport === 'basquete' ? 'translate(160px, -230px)' : ''} rotate(${rotation}deg)`,
             filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))'
           }}
         />
