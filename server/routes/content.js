@@ -127,8 +127,14 @@ router.put('/', requireAuth, async (req, res) => {
        os pacotes deste portal. */
     let backupPackages = packages;
     if (sharedDbEnabled() && packages !== undefined) {
-      await saveSharedPackages(packages);
-      backupPackages = packages.filter(p => !p.origem || p.origem === PORTAL);
+      try {
+        await saveSharedPackages(packages);
+        backupPackages = packages.filter(p => !p.origem || p.origem === PORTAL);
+      } catch (err) {
+        // Banco compartilhado indisponível: NÃO aborta o salvamento — grava
+        // tudo no banco próprio (legado) para não perder a edição do usuário.
+        console.error('[PUT /api/content] banco compartilhado indisponível, salvando apenas no banco local:', err.message);
+      }
     }
 
     // Fetch current to preserve fields not sent by the caller (like testimonials from marketing panel)
