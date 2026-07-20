@@ -129,7 +129,7 @@ export default function CategoriesSection() {
   // Filtrar apenas aprovados, preservando o index original
   const packages = allPackages
     .map((p, i) => ({ ...p, originalIndex: i }))
-    .filter(p => (!p.status || p.status === 'approved') && !p.deletedAt);
+    .filter(p => (!p.status || p.status === 'approved') && !p.deletedAt && !p.portalHidden);
 
   // Agrupar por categoria com índices originais
   const grouped = packages.reduce<Record<string, (TrendingPackage & { originalIndex: number })[]>>((acc, pkg) => {

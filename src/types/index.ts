@@ -16,6 +16,10 @@ export interface EventHighlight {
 }
 
 export interface TrendingPackage {
+  /* ── Integração (banco compartilhado) ── */
+  sharedId?: number; // id na tabela shared_packages
+  origem?: 'gp' | 'emais' | 'torcida'; // portal dono do conteúdo (só ele edita)
+  portalHidden?: boolean; // true = pacote DESLIGADO neste portal (controle local)
   tag: string;
   title: string;
   slug?: string; // URL permanente da LP: /pacote/<slug> (único; gerado do título, editável no admin)
@@ -70,3 +74,8 @@ export interface TrendingPackage {
   deletedAt?: string;
   deletedBy?: string;
 }
+
+/* ── Integração entre portais (banco compartilhado de pacotes) ── */
+/** Identidade deste portal na integração (GP/E-Mais/Torcida). */
+export const PORTAL_ID = 'emais';
+export const PORTAL_NAMES: Record<string, string> = { gp: 'GP Experience', emais: 'E-Mais', torcida: 'Torcida Placar' };

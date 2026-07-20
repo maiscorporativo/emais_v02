@@ -285,6 +285,8 @@ export default function PackageLP() {
         navigate('/');
         return;
       }
+      // Pacote desligado NESTE portal (controle local da integração)
+      if (p.portalHidden) { setNotFound(true); return; }
       if (p.externalUrl && p.externalUrl.trim() !== '') {
         // Repassa UTMs/fbclid/gclid da URL atual para a LP externa
         window.location.href = appendCurrentQuery(p.externalUrl.trim());

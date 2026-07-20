@@ -27,7 +27,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { DEFAULT_IMAGES, type ImageKey } from '../imageConfig';
 import { useImageConfig } from '../hooks/useImageConfig';
 import { useContentConfig } from '../hooks/useContentConfig';
-import type { TrendingPackage } from '../types';
+import { PORTAL_ID, PORTAL_NAMES, type TrendingPackage } from '../types';
 import { useToast } from '../components/ui/ToastProvider';
 import { useDialog } from '../components/ui/DialogProvider';
 import LPContentEditor from './LPEditor';
@@ -702,13 +702,14 @@ function DateRangeField({ value, onChange }: { value: string; onChange: (v: stri
 
 const MAX_TRENDING = 8;
 
-function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs = [], onUpdate, onRemove, onReorder, onSetTrending, onDuplicate, onSaved, isOpen, onToggle, dragHandleProps }: {
+function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs = [], onUpdate, onRemove, onReorder, onSetTrending, onSetHidden, onDuplicate, onSaved, isOpen, onToggle, dragHandleProps }: {
   pkg: TrendingPackage; index: number; total: number; trendingCount: number; categories: string[];
   otherSlugs?: string[];
   onUpdate: (d: Partial<TrendingPackage>) => void;
   onRemove: () => void;
   onReorder: (dir: 'up' | 'down') => void;
   onSetTrending: (v: boolean) => void;
+  onSetHidden?: (hidden: boolean) => void;
   onDuplicate?: () => void;
   onSaved?: () => void;
   isOpen: boolean;
@@ -739,6 +740,11 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
     setTrendMsg(msg);
     setTimeout(() => setTrendMsg(null), 3500);
   };
+
+  /* Pacote de OUTRO portal (integração): conteúdo é somente leitura aqui —
+     este portal controla apenas exibição, Em Alta e ordem. */
+  const isExternal = !!pkg.origem && pkg.origem !== PORTAL_ID;
+
   return (
     <div style={{ background: '#002042', border: '1px solid #333333', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }} onClick={handleToggle}>
@@ -747,6 +753,12 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: '#e8edf2' }}>{pkg.title || 'Sem título'}</span>
             <span style={{ fontSize: 10, background: '#333333', color: '#f7ad40', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>{pkg.tag}</span>
+            {isExternal && (
+              <span style={{ fontSize: 10, background: '#1a2030', color: '#93c5fd', border: '1px solid #2a3a55', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🔗 {PORTAL_NAMES[pkg.origem || ''] || pkg.origem}</span>
+            )}
+            {pkg.portalHidden && (
+              <span style={{ fontSize: 10, background: '#3a0d0d', color: '#f87171', border: '1px solid #7a1a1a', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>Oculto neste portal</span>
+            )}
           </div>
           <div style={{ fontSize: 12, color: '#737373', marginTop: 2 }}>{pkg.date} · {pkg.loc} · {pkg.currency || 'BRL'} {pkg.price}</div>
         </div>
@@ -758,14 +770,48 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
             )}
             <button onClick={e => { e.stopPropagation(); onReorder('up'); }} disabled={index === 0} style={iconBtn(index === 0)} title="Mover para cima"><ChevronUp size={14} /></button>
             <button onClick={e => { e.stopPropagation(); onReorder('down'); }} disabled={index === total - 1} style={iconBtn(index === total - 1)} title="Mover para baixo"><ChevronDown size={14} /></button>
-            {onDuplicate && (
+            {onDuplicate && !isExternal && (
               <button onClick={e => { e.stopPropagation(); onDuplicate(); }} style={iconBtn(false)} title="Duplicar pacote (copia toda a landing page)"><Copy size={14} /></button>
             )}
-            <button onClick={async e => { e.stopPropagation(); if (await showConfirm('Remover este pacote?', { type: 'danger', confirmText: 'Remover', title: 'Remover Pacote' })) onRemove(); }} style={iconBtn(false, true)} title="Remover"><Trash2 size={14} /></button>
+            {!isExternal && (
+              <button onClick={async e => { e.stopPropagation(); if (await showConfirm('Remover este pacote?', { type: 'danger', confirmText: 'Remover', title: 'Remover Pacote' })) onRemove(); }} style={iconBtn(false, true)} title="Remover"><Trash2 size={14} /></button>
+            )}
           </div>
         <span style={{ color: '#737373', fontSize: 12 }}>{isOpen ? '▴' : '▾'}</span>
       </div>
-      {isOpen && (
+      {/* ── Pacote de outro portal: apenas controles locais ── */}
+      {isOpen && isExternal && (
+        <div style={{ padding: '0 16px 20px', borderTop: '1px solid #333333' }}>
+          <div style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {trendMsg && (
+              <div style={{ background: trendMsg.startsWith('🔥') ? '#0d3320' : '#1a2030', border: '1px solid #333333', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: trendMsg.startsWith('🔥') ? '#4ade80' : '#f7ad40', fontWeight: 600 }}>
+                {trendMsg}
+              </div>
+            )}
+            <div style={{ background: '#1a2030', border: '1px solid #333333', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#93c5fd', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Globe2 size={14} style={{ flexShrink: 0 }} />
+              <span><strong>Pacote do portal {PORTAL_NAMES[pkg.origem || ''] || pkg.origem}.</strong> O conteúdo e a aprovação são gerenciados lá — aqui você controla apenas como ele aparece neste site.</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+              <div style={{ background: '#001a33', border: '1px solid #333333', borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: pkg.portalHidden ? '#737373' : '#4ade80' }}>Exibir neste portal</span>
+                <button type="button" onClick={() => onSetHidden?.(!pkg.portalHidden)}
+                  style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .2s', background: pkg.portalHidden ? '#333333' : '#16a34a' }}>
+                  <span style={{ position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s', left: pkg.portalHidden ? 3 : 23 }} />
+                </button>
+              </div>
+              <div style={{ background: '#001a33', border: '1px solid #333333', borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: pkg.isTrending ? '#f7ad40' : '#737373', display: 'flex', alignItems: 'center', gap: 4 }}><Flame size={12} /> Em Alta neste portal</span>
+                <button type="button" onClick={handleTrendToggle}
+                  style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .2s', background: pkg.isTrending ? '#f7ad40' : '#333333', opacity: !pkg.isTrending && trendingCount >= MAX_TRENDING ? 0.5 : 1 }}>
+                  <span style={{ position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s', left: pkg.isTrending ? 23 : 3 }} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {isOpen && !isExternal && (
         <div style={{ padding: '0 16px 20px', borderTop: '1px solid #333333' }}>
           <div style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Trend notification */}
@@ -801,6 +847,19 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
             )}
             {/* Audit trail */}
             <AuditTrail pkg={pkg} />
+
+            {/* Exibição neste portal (controle local da integração) */}
+            {pkg.sharedId != null && onSetHidden && (
+              <div style={{ background: '#001a33', border: '1px solid #333333', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontSize: 12, color: '#a3a3a3' }}>
+                  <strong style={{ color: pkg.portalHidden ? '#f87171' : '#4ade80' }}>{pkg.portalHidden ? 'Oculto neste portal' : 'Exibido neste portal'}</strong> — este pacote é compartilhado com os outros portais; o botão ao lado liga/desliga apenas aqui.
+                </span>
+                <button type="button" onClick={() => onSetHidden(!pkg.portalHidden)}
+                  style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .2s', background: pkg.portalHidden ? '#333333' : '#16a34a', flexShrink: 0 }}>
+                  <span style={{ position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s', left: pkg.portalHidden ? 3 : 23 }} />
+                </button>
+              </div>
+            )}
 
             <AdminSection title="Informações Básicas" icon={Tag}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
@@ -949,7 +1008,7 @@ function SortablePackageCard(props: any) {
 }
 
 function PackagesTab() {
-  const { packages, categories, updatePackage, addPackage, duplicatePackage, removePackage, reorderPackage, setPackageTrending } = useContentConfig();
+  const { packages, categories, updatePackage, addPackage, duplicatePackage, removePackage, reorderPackage, setPackageTrending, setPackageHidden } = useContentConfig();
   const { toast } = useToast();
   const [openRealIdx, setOpenRealIdx] = useState<number | null>(null);
   const activePackages = packages
@@ -1006,6 +1065,7 @@ function PackagesTab() {
               onToggle={() => setOpenRealIdx(prev => prev === realIdx ? null : realIdx)}
               onUpdate={(d: any) => updatePackage(realIdx, d)}
               onSetTrending={(v: any) => setPackageTrending(realIdx, v)}
+              onSetHidden={(h: boolean) => { setPackageHidden(realIdx, h); toast(h ? 'Pacote ocultado neste portal.' : 'Pacote visível neste portal.', 'success'); }}
               onDuplicate={() => { duplicatePackage(realIdx); toast('Pacote duplicado! A cópia está logo abaixo — edite os campos e envie para aprovação. 📋', 'success'); }}
               onRemove={() => { removePackage(realIdx); toast('Pacote movido para a lixeira.', 'warning'); }}
               onReorder={(dir: string) => reorderPackage(realIdx, dir === 'up' ? realIdx - 1 : realIdx + 1)}

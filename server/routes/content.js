@@ -7,6 +7,7 @@ import {
   DEFAULT_HERO_IMAGES,
   DEFAULT_CATEGORIES,
 } from '../defaults.js';
+import { listSharedPackages, saveSharedPackages, sharedDbEnabled, PORTAL } from '../shared-packages.js';
 
 const router = express.Router();
 
@@ -86,10 +87,24 @@ router.get('/', async (req, res) => {
       });
     }
     const row = rows[0];
+
+    /* Pacotes: com a integração ativa, a fonte da verdade é a tabela
+       compartilhada (os 3 portais). Enquanto ela estiver vazia para a
+       visão deste portal, mantém os pacotes legados do site_content. */
+    let packages = parseField(row.packages, DEFAULT_PACKAGES);
+    if (sharedDbEnabled()) {
+      try {
+        const shared = await listSharedPackages();
+        if (shared.length > 0) packages = shared;
+      } catch (err) {
+        console.error('[GET /api/content] banco compartilhado indisponível, usando legado:', err.message);
+      }
+    }
+
     res.json({
       updated_at:     row.updated_at,
       events:         parseField(row.events,          DEFAULT_EVENTS),
-      packages:       parseField(row.packages,        DEFAULT_PACKAGES),
+      packages,
       testimonials:   parseField(row.testimonials,    DEFAULT_TESTIMONIALS),
       heroImages:     parseField(row.hero_images,     DEFAULT_HERO_IMAGES),
       categories:     parseField(row.categories,      DEFAULT_CATEGORIES),
@@ -106,12 +121,22 @@ router.put('/', requireAuth, async (req, res) => {
   try {
     const { events, packages, testimonials, heroImages, categories, categoryIcons } = req.body;
 
+    /* Integração ativa: sincroniza os pacotes com a tabela compartilhada
+       (conteúdo só é gravado para pacotes de origem própria; para os demais,
+       apenas os controles locais). O site_content guarda como backup somente
+       os pacotes deste portal. */
+    let backupPackages = packages;
+    if (sharedDbEnabled() && packages !== undefined) {
+      await saveSharedPackages(packages);
+      backupPackages = packages.filter(p => !p.origem || p.origem === PORTAL);
+    }
+
     // Fetch current to preserve fields not sent by the caller (like testimonials from marketing panel)
     const [current] = await pool.query('SELECT * FROM site_content WHERE id = 1');
     const existing = current.length ? current[0] : {};
 
     const finalEvents       = events       !== undefined ? JSON.stringify(events)       : (existing.events       || JSON.stringify(DEFAULT_EVENTS));
-    const finalPackages     = packages     !== undefined ? JSON.stringify(packages)     : (existing.packages     || JSON.stringify(DEFAULT_PACKAGES));
+    const finalPackages     = backupPackages !== undefined ? JSON.stringify(backupPackages) : (existing.packages  || JSON.stringify(DEFAULT_PACKAGES));
     const finalTestimonials = testimonials !== undefined ? JSON.stringify(testimonials) : (existing.testimonials || JSON.stringify(DEFAULT_TESTIMONIALS));
     const finalHeroImages   = heroImages   !== undefined ? JSON.stringify(heroImages)   : (existing.hero_images   || JSON.stringify(DEFAULT_HERO_IMAGES));
     const finalCategories   = categories   !== undefined ? JSON.stringify(categories)   : (existing.categories   || JSON.stringify(DEFAULT_CATEGORIES));

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, X, ChevronDown, ChevronUp, Shield, LogOut, Upload, Plus, Trash2, Pencil, Users, KeyRound, AlertTriangle, Clock, CheckCircle2, XCircle, Plane, BedDouble, Ticket, FileText, Globe2, Type, Award, Flame, Package, ArrowRight, Tag, MapPin, CalendarDays, DollarSign, RotateCcw } from 'lucide-react';
 import { useContentConfig } from '../hooks/useContentConfig';
-import type { TrendingPackage } from '../types';
+import { PORTAL_ID, type TrendingPackage } from '../types';
 import { useToast } from '../components/ui/ToastProvider';
 import { useDialog } from '../components/ui/DialogProvider';
 import LPContentEditor from './LPEditor';
@@ -642,10 +642,12 @@ export default function MasterAdmin() {
 
   if (!authed) return <MasterLogin onLogin={() => setAuthed(true)} />;
 
-  const pendingPkgs = packages.filter(p => (!p.status || p.status === 'pending') && !p.deletedAt);
-  const approvedPkgs = packages.filter(p => p.status === 'approved' && !p.deletedAt);
-  const rejectedPkgs = packages.filter(p => p.status === 'rejected' && !p.deletedAt);
-  const deletedPkgs = packages.map((p, i) => ({ p, i })).filter(({ p }) => !!p.deletedAt);
+  // Integração: o master só gerencia pacotes criados NESTE portal (aprovação é global, feita na origem)
+  const own = (p: TrendingPackage) => !p.origem || p.origem === PORTAL_ID;
+  const pendingPkgs = packages.filter(p => own(p) && (!p.status || p.status === 'pending') && !p.deletedAt);
+  const approvedPkgs = packages.filter(p => own(p) && p.status === 'approved' && !p.deletedAt);
+  const rejectedPkgs = packages.filter(p => own(p) && p.status === 'rejected' && !p.deletedAt);
+  const deletedPkgs = packages.map((p, i) => ({ p, i })).filter(({ p }) => own(p) && !!p.deletedAt);
 
   const totalPending = pendingPkgs.length;
 

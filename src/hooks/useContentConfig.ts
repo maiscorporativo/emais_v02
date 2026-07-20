@@ -309,6 +309,11 @@ export function useContentConfig() {
   const setPackageTrending = useCallback((i: number, isTrending: boolean) =>
     setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, isTrending } : p) }; persist(next); return next; }), [persist]);
 
+  /** Liga/desliga a exibição do pacote NESTE portal (controle local da
+   *  integração — não altera o conteúdo nem o status de aprovação). */
+  const setPackageHidden = useCallback((i: number, hidden: boolean) =>
+    setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, portalHidden: hidden } : p) }; persist(next); return next; }), [persist]);
+
   const approvePackage = useCallback((i: number) => {
     const user = getMasterUser();
     setContent(prev => { const next = { ...prev, packages: prev.packages.map((p, idx) => idx === i ? { ...p, status: 'approved' as const, approvedBy: user, approvedAt: now(), rejectedBy: undefined, rejectedAt: undefined } : p) }; persist(next); return next; });
@@ -454,7 +459,7 @@ export function useContentConfig() {
     updateEvent, addEvent, removeEvent, reorderEvent,
     approveEvent, rejectEvent, masterUpdateEvent,
     updatePackage, addPackage, duplicatePackage, removePackage, restorePackage, permanentRemovePackage, reorderPackage,
-    approvePackage, rejectPackage, masterUpdatePackage, marketingUpdatePackage, setPackageTrending,
+    approvePackage, rejectPackage, masterUpdatePackage, marketingUpdatePackage, setPackageTrending, setPackageHidden,
     addCategory, removeCategory, updateCategory, reorderCategory, updateCategoryIcon,
     resetAll, exportConfig, importConfig,
   };

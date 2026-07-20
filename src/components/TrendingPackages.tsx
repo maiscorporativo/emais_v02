@@ -13,7 +13,7 @@ export default function TrendingPackages() {
   
   const packagesWithIndex = allPackages
     .map((p, i) => ({ ...p, originalIndex: i }))
-    .filter(p => (!p.status || p.status === 'approved') && p.isTrending === true && !p.deletedAt)
+    .filter(p => (!p.status || p.status === 'approved') && p.isTrending === true && !p.deletedAt && !p.portalHidden)
     .slice(0, 8);
 
   const handleNavigate = (idx: number, externalUrl?: string, slug?: string) => {

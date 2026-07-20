@@ -5,7 +5,7 @@ import {
   Play, Database, CheckCircle2, Globe, Clock
 } from 'lucide-react';
 import { useContentConfig } from '../hooks/useContentConfig';
-import type { TrendingPackage } from '../types';
+import { PORTAL_ID, type TrendingPackage } from '../types';
 import { useToast } from '../components/ui/ToastProvider';
 import LPContentEditor from './LPEditor';
 
@@ -251,7 +251,7 @@ export default function MarketingPanel() {
   // Marketing apenas vê pacotes aprovados
   const approvedPkgs = packages
     .map((p, i) => ({ ...p, originalIndex: i }))
-    .filter(p => p.status === 'approved' && !p.deletedAt);
+    .filter(p => (!p.origem || p.origem === PORTAL_ID) && p.status === 'approved' && !p.deletedAt); // Integração: LPs de pacotes de outros portais são configuradas na origem
 
   const filtered = approvedPkgs.filter(p =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
