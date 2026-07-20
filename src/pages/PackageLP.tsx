@@ -190,12 +190,12 @@ function SportBall({ sport }: { sport: string }) {
           alt={sport === 'tenis' ? 'Tennis Ball' : sport === 'basquete' ? 'Basketball' : 'Soccer Ball'}
           style={{
             width: sport === 'futebol'
-              ? (isMobile ? '30px' : '100px')
+              ? (isMobile ? '24px' : '71px')
               : sport === 'tenis'
                 ? (isMobile ? '15px' : '40px')
                 : (isMobile ? '30px' : '100px'),
             height: sport === 'futebol'
-              ? (isMobile ? '30px' : '100px')
+              ? (isMobile ? '24px' : '71px')
               : sport === 'tenis'
                 ? (isMobile ? '15px' : '40px')
                 : (isMobile ? '30px' : '100px'),
