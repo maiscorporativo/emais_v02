@@ -126,8 +126,8 @@ function SportBall({ sport }: { sport: string }) {
             height: '50%',
             objectFit: 'contain',
             transform: isMobile
-              ? 'translate(110px, 75px) scale(1.0)'
-              : 'translate(300px, 200px) scale(1.2)',
+              ? 'translate(125px, 90px) scale(0.8)'
+              : 'translate(340px, 240px) scale(0.85)',
             filter: 'drop-shadow(0 15px 45px rgba(0,0,0,0.5))',
             zIndex: -1
           }}
@@ -201,8 +201,8 @@ function SportBall({ sport }: { sport: string }) {
                 : (isMobile ? '30px' : '100px'),
             objectFit: 'contain',
             transform: isMobile
-              ? `${sport === 'futebol' ? 'translate(80px, 35px)' : sport === 'tenis' ? 'translate(50px, 100px)' : sport === 'basquete' ? 'translate(65px, -65px)' : ''} rotate(${rotation}deg)`
-              : `${sport === 'futebol' ? 'translate(180px, -10px)' : sport === 'tenis' ? 'translate(150px, 260px)' : sport === 'basquete' ? 'translate(160px, -230px)' : ''} rotate(${rotation}deg)`,
+              ? `${sport === 'futebol' ? 'translate(100px, 60px)' : sport === 'tenis' ? 'translate(50px, 100px)' : sport === 'basquete' ? 'translate(65px, -65px)' : ''} rotate(${rotation}deg)`
+              : `${sport === 'futebol' ? 'translate(300px, 180px)' : sport === 'tenis' ? 'translate(150px, 260px)' : sport === 'basquete' ? 'translate(160px, -230px)' : ''} rotate(${rotation}deg)`,
             filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))'
           }}
         />
