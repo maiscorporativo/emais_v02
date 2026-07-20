@@ -1,10 +1,13 @@
 /**
  * setup-full.js — Cria TODO o schema do banco próprio do E-Mais + usuários
- * padrão, em um único comando. Idempotente: pode rodar quantas vezes quiser,
- * nunca apaga ou sobrescreve dados existentes (exceto a senha dos usuários
- * padrão, que é sempre re-hasheada para os valores abaixo).
+ * padrão. Idempotente: pode rodar quantas vezes quiser, nunca apaga ou
+ * sobrescreve dados existentes (exceto a senha dos usuários padrão, que é
+ * sempre re-hasheada para os valores abaixo).
  *
- * Uso (na pasta do projeto, com o .env já configurado com DB_*):
+ * Exporta runFullSetup() para ser reutilizada pela rota HTTP protegida
+ * (server/routes/setup.js) — útil quando não há acesso a terminal SSH.
+ *
+ * Uso via linha de comando (na pasta do projeto, com o .env configurado):
  *   node server/setup-full.js
  */
 import bcrypt from 'bcryptjs';
@@ -17,8 +20,11 @@ const USERS = [
   { username: 'marketing', password: 'mkt2025',   role: 'marketing' },
 ];
 
-async function main() {
-  console.log('📦 Criando tabelas...\n');
+export async function runFullSetup() {
+  const log = [];
+  const say = (msg) => { log.push(msg); console.log(msg); };
+
+  say('📦 Criando tabelas...');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS site_content (
@@ -32,14 +38,14 @@ async function main() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
-  console.log('  ✅ site_content');
+  say('  ✅ site_content');
 
   await pool.query(
     `INSERT IGNORE INTO site_content (id, events, packages, testimonials, hero_images, categories, category_icons)
      VALUES (1, '[]', '[]', '[]', '{}', ?, '{}')`,
     [JSON.stringify(DEFAULT_CATEGORIES)]
   );
-  console.log('  ✅ linha padrão em site_content (id=1)');
+  say('  ✅ linha padrão em site_content (id=1)');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS admin_users (
@@ -49,11 +55,10 @@ async function main() {
       role ENUM('admin', 'master', 'marketing') NOT NULL DEFAULT 'admin'
     ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
-  // Garante o role 'marketing' mesmo se a tabela já existia com o ENUM antigo
   try {
     await pool.query("ALTER TABLE admin_users MODIFY COLUMN role ENUM('admin', 'master', 'marketing') NOT NULL DEFAULT 'admin'");
   } catch { /* já está correto */ }
-  console.log('  ✅ admin_users');
+  say('  ✅ admin_users');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_sessions (
@@ -66,9 +71,9 @@ async function main() {
       INDEX idx_expires (expires_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
-  console.log('  ✅ user_sessions');
+  say('  ✅ user_sessions');
 
-  console.log('\n🔐 Criando/atualizando usuários de login...\n');
+  say('🔐 Criando/atualizando usuários de login...');
   for (const user of USERS) {
     const hash = await bcrypt.hash(user.password, 10);
     await pool.query(
@@ -77,11 +82,16 @@ async function main() {
        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = VALUES(role)`,
       [user.username, hash, user.role]
     );
-    console.log(`  ✅ ${user.role.padEnd(9)} → usuário: "${user.username}" / senha: "${user.password}"`);
+    say(`  ✅ ${user.role.padEnd(9)} → usuário: "${user.username}" / senha: "${user.password}"`);
   }
 
-  console.log('\n✔ Banco pronto. Troque as senhas padrão depois do primeiro login.');
-  process.exit(0);
+  say('✔ Banco pronto. Troque as senhas padrão depois do primeiro login.');
+  return log;
 }
 
-main().catch(err => { console.error('❌ Erro:', err); process.exit(1); });
+// Executa via CLI apenas quando chamado diretamente (node server/setup-full.js)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runFullSetup()
+    .then(() => process.exit(0))
+    .catch(err => { console.error('❌ Erro:', err); process.exit(1); });
+}
