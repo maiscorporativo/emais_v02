@@ -8,6 +8,7 @@ import uploadRouter, { uploadsDir } from './routes/upload.js';
 import authRouter from './routes/auth.js';
 import contactRouter from './routes/contact.js';
 import pool from './db.js';
+import { migrateSharedDb } from './shared-db.js';
 
 dotenv.config();
 
@@ -114,6 +115,11 @@ async function autoMigrate() {
 
 app.listen(PORT, async () => {
   await autoMigrate();
+  try {
+    await migrateSharedDb();
+  } catch (e) {
+    console.warn('⚠️ Migração do banco compartilhado falhou (não crítico):', e.message);
+  }
   console.log(`\n🚀 E-Mais API rodando em http://localhost:${PORT}`);
   console.log(`   Ambiente: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Banco:    ${process.env.DB_NAME || 'torcida'} @ ${process.env.DB_HOST || 'localhost'}\n`);
