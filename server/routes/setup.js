@@ -122,6 +122,72 @@ router.get('/check-upload', requireSetupToken, (req, res) => {
   res.type('text/plain').send(lines.join('\n'));
 });
 
+/** Varre TODO o conteúdo salvo (site_content + shared_packages, se ativo)
+ *  procurando referências a /uploads/... e confere, uma a uma, se o arquivo
+ *  realmente existe na pasta persistente — sem depender da CDN. */
+router.get('/check-all-images', requireSetupToken, async (req, res) => {
+  const lines = [];
+  const refs = new Set(); // valor -> onde apareceu (guardamos separado)
+  const foundIn = new Map(); // path do arquivo -> lista de "onde"
+
+  function scan(blob, label) {
+    if (!blob) return;
+    const text = typeof blob === 'string' ? blob : JSON.stringify(blob);
+    const matches = text.match(/\/uploads\/[A-Za-z0-9._-]+/g) || [];
+    for (const m of matches) {
+      refs.add(m);
+      if (!foundIn.has(m)) foundIn.set(m, new Set());
+      foundIn.get(m).add(label);
+    }
+  }
+
+  try {
+    const [rows] = await pool.query('SELECT * FROM site_content WHERE id = 1');
+    if (rows.length) {
+      const row = rows[0];
+      scan(row.events, 'events');
+      scan(row.packages, 'packages (backup local)');
+      scan(row.testimonials, 'testimonials');
+      scan(row.hero_images, 'hero_images (Galeria Hero)');
+      scan(row.category_icons, 'category_icons');
+    }
+  } catch (err) {
+    lines.push(`❌ ERRO ao ler site_content: ${err.message}`);
+  }
+
+  if (sharedDbEnabled()) {
+    try {
+      const [rows] = await sharedPool.query('SELECT id, origem, payload FROM shared_packages');
+      for (const r of rows) scan(r.payload, `shared_packages #${r.id} (origem: ${r.origem})`);
+    } catch (err) {
+      lines.push(`❌ ERRO ao ler shared_packages: ${err.message}`);
+    }
+  }
+
+  const results = [...refs].sort().map(ref => {
+    const filename = ref.replace('/uploads/', '');
+    const filePath = path.join(uploadsDir, filename);
+    const ok = fs.existsSync(filePath);
+    return { ref, ok, where: [...foundIn.get(ref)].join(', ') };
+  });
+
+  const broken = results.filter(r => !r.ok);
+  const ok = results.filter(r => r.ok);
+
+  lines.push(`Total de referências /uploads/ encontradas: ${results.length}`);
+  lines.push(`✅ OK: ${ok.length}   ❌ QUEBRADAS: ${broken.length}`);
+  lines.push('');
+  if (broken.length) {
+    lines.push('❌ REFERÊNCIAS QUEBRADAS (arquivo não existe na pasta persistente):');
+    for (const r of broken) lines.push(`  ${r.ref}  —  onde: ${r.where}`);
+    lines.push('');
+  }
+  lines.push('✅ Referências OK:');
+  for (const r of ok) lines.push(`  ${r.ref}  —  onde: ${r.where}`);
+
+  res.type('text/plain').send(lines.join('\n'));
+});
+
 router.get('/full-setup', requireSetupToken, async (req, res) => {
   try {
     const log = await runFullSetup();
