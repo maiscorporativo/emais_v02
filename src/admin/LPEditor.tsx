@@ -159,6 +159,7 @@ function ImageBankManager({ value, onChange, tokenKey, otherPackages }: {
   const images = splitList(value);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [urlInput, setUrlInput] = useState('');
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -173,6 +174,13 @@ function ImageBankManager({ value, onChange, tokenKey, otherPackages }: {
     setUploading(false); e.target.value = '';
   };
 
+  const addUrl = () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    if (!images.includes(url)) onChange(joinList([...images, url]));
+    setUrlInput('');
+  };
+
   const removeAt = (idx: number) => {
     const next = [...images]; next.splice(idx, 1);
     onChange(joinList(next));
@@ -182,6 +190,16 @@ function ImageBankManager({ value, onChange, tokenKey, otherPackages }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input type="url" value={urlInput} onChange={e => setUrlInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addUrl(); } }}
+          placeholder="https://... (colar URL de uma imagem já hospedada)"
+          style={{ ...IS, flex: 1, minWidth: 220, fontSize: 12, padding: '7px 10px' }} />
+        <button onClick={addUrl} type="button"
+          style={{ background: '#002042', border: '1px solid #003866', color: '#fff', padding: '0 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+          Adicionar
+        </button>
+      </div>
       {importable.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <select
