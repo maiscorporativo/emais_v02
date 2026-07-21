@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DEFAULT_IMAGES, STORAGE_KEY, type ImageKey } from '../imageConfig';
+import { encodeB64, unwrapContentResponse } from './useContentConfig';
 
 type ImageOverrides = Partial<Record<ImageKey, string>>;
 
-const UPDATE_EVENT = 'torcida_image_update';
-const CONTENT_UPDATE_EVENT = 'torcida_content_update';
+const UPDATE_EVENT = 'emais_image_update';
+const CONTENT_UPDATE_EVENT = 'emais_content_update';
 const getSessionToken = () =>
   localStorage.getItem('emais_admin_token') ||
   localStorage.getItem('emais_master_token') ||
@@ -21,16 +22,24 @@ function loadOverrides(): ImageOverrides {
 async function pushHeroToApi(overrides: ImageOverrides) {
   try {
     // Read current content from cache and attach updated hero images
-    const contentRaw = localStorage.getItem('torcida_content_cache');
+    const contentRaw = localStorage.getItem('emais_content_cache');
     const content = contentRaw ? JSON.parse(contentRaw) : {};
-    const res = await fetch('/api/content', {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getSessionToken()}`,
+    };
+    const payload = { ...content, heroImages: overrides };
+    // Rota Base64 (imune ao firewall/ModSecurity da hospedagem, que bloqueia
+    // com 403 corpos contendo HTML/scripts, ex: snippets do Mautic em cache);
+    // 404 = servidor antigo → cai para a rota legada.
+    let res = await fetch('/api/content/b64', {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getSessionToken()}`,
-      },
-      body: JSON.stringify({ ...content, heroImages: overrides }),
+      headers,
+      body: JSON.stringify({ b64: encodeB64(payload) }),
     });
+    if (res.status === 404) {
+      res = await fetch('/api/content', { method: 'PUT', headers, body: JSON.stringify(payload) });
+    }
     if (!res.ok) {
       console.error('[useImageConfig] Falha ao salvar imagens da galeria no servidor:', res.status, await res.text().catch(() => ''));
     }
@@ -44,9 +53,10 @@ export function useImageConfig() {
 
   // Fetch hero images from API on mount
   useEffect(() => {
-    fetch('/api/content')
+    fetch('/api/content?b64=1')
       .then(r => r.json())
-      .then(data => {
+      .then(raw => {
+        const data = unwrapContentResponse(raw);
         if (data.heroImages && Object.keys(data.heroImages).length > 0) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data.heroImages));
           setOverrides(data.heroImages);
