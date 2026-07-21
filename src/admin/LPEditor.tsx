@@ -16,7 +16,7 @@
 import React, { useState } from 'react';
 import {
   Image as ImageIcon, Plus, Trash2, X, Video, LayoutGrid, CalendarDays,
-  BedDouble, Star, Images, Loader2, DollarSign, Medal,
+  BedDouble, Star, Images, Loader2, DollarSign, Medal, Check, MapPin,
 } from 'lucide-react';
 import type { TrendingPackage } from '../types';
 
@@ -56,15 +56,30 @@ async function uploadImage(file: File, tokenKey: string): Promise<string> {
   return data.url as string;
 }
 
+/* ── Switch liga/desliga ── */
+function VisSwitch({ on, onChange, label = 'Exibir na LP' }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: on ? '#4ade80' : '#666' }}>{label}</span>
+      <button type="button" onClick={() => onChange(!on)} title={on ? 'Seção visível — clique para ocultar' : 'Seção oculta — clique para exibir'}
+        style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .2s', background: on ? '#16a34a' : '#333', padding: 0 }}>
+        <span style={{ position: 'absolute', top: 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left .2s', left: on ? 21 : 3 }} />
+      </button>
+    </div>
+  );
+}
+
 /* ── Wrapper de seção, com etiqueta indicando onde o conteúdo aparece na LP ── */
-function LPSection({ badge, title, subtitle, icon: Icon, color, children }: {
+function LPSection({ badge, title, subtitle, icon: Icon, color, toggle, children }: {
   badge: string; title: string; subtitle: string;
   icon: React.ComponentType<{ size?: number | string; color?: string }>;
   color: string;
+  toggle?: { on: boolean; onChange: (v: boolean) => void };
   children: React.ReactNode;
 }) {
+  const hidden = toggle && !toggle.on;
   return (
-    <div style={{ background: '#001a33', border: '1px solid #222', borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ background: '#001a33', border: `1px solid ${hidden ? '#002042' : '#222'}`, borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', gap: 16, opacity: hidden ? 0.65 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #002b52', paddingBottom: 14 }}>
         <div style={{ width: 38, height: 38, background: `${color}18`, border: `1px solid ${color}40`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Icon size={18} color={color} />
@@ -73,9 +88,11 @@ function LPSection({ badge, title, subtitle, icon: Icon, color, children }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 9, fontWeight: 900, color, background: `${color}15`, border: `1px solid ${color}35`, padding: '2px 8px', borderRadius: 100, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{badge}</span>
             <h3 style={{ fontSize: 13, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>{title}</h3>
+            {hidden && <span style={{ fontSize: 9, fontWeight: 800, color: '#f87171', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', padding: '2px 8px', borderRadius: 100, textTransform: 'uppercase' }}>Oculta na LP</span>}
           </div>
           <p style={{ ...hint, marginTop: 4 }}>{subtitle}</p>
         </div>
+        {toggle && <VisSwitch on={toggle.on} onChange={toggle.onChange} />}
       </div>
       {children}
     </div>
@@ -181,6 +198,81 @@ function ImageBankManager({ value, onChange, tokenKey }: {
   );
 }
 
+/* ── Seletor de imagens a partir do Banco de Imagens ── */
+function BankPicker({ bank, selected, multiple, onChange }: {
+  bank: string[]; selected: string[]; multiple: boolean;
+  onChange: (urls: string[]) => void;
+}) {
+  // Imagens selecionadas que não existem mais no banco (ex: apagadas após duplicar
+  // um pacote) — exibidas em vermelho para poderem ser removidas da seleção.
+  const orphans = selected.filter(u => !bank.includes(u));
+  if (bank.length === 0 && orphans.length === 0) {
+    return <p style={{ ...hint, padding: 12, background: '#002042', borderRadius: 8, border: '1px dashed #002b52' }}>O Banco de Imagens está vazio — envie fotos na seção "Experiências" ou "Banco de Imagens" para poder selecioná-las aqui.</p>;
+  }
+  const toggle = (url: string) => {
+    if (selected.includes(url)) onChange(selected.filter(u => u !== url));
+    else onChange(multiple ? [...selected, url] : [url]);
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {orphans.length > 0 && (
+        <div style={{ padding: 10, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            ⚠️ Imagens selecionadas que não estão mais no Banco de Imagens — clique no X para removê-las
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8 }}>
+            {orphans.map((img, idx) => (
+              <button key={`orfa-${idx}`} onClick={() => toggle(img)} title="Remover esta imagem da seção"
+                style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', padding: 0, cursor: 'pointer', border: '2px solid #ef4444' }}>
+                <img src={img} alt={`Imagem removida do banco ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.7 }} />
+                <span style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={11} color="#fff" />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8 }}>
+      {bank.map((img, idx) => {
+        const isSel = selected.includes(img);
+        return (
+          <button key={`${idx}-${img}`} onClick={() => toggle(img)} title={isSel ? 'Clique para desmarcar' : 'Clique para usar esta imagem'}
+            style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', padding: 0, cursor: 'pointer', border: isSel ? '2px solid #4ade80' : '1px solid #002b52', opacity: isSel ? 1 : 0.75 }}>
+            <img src={img} alt={`Banco ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            {isSel && (
+              <span style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', background: '#4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Check size={11} color="#000" />
+              </span>
+            )}
+          </button>
+        );
+      })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Editor de lista simples (um texto por item — ex: "experiências exclusivas") ── */
+function SimpleListEditor({ items, onChange, placeholder, addLabel }: {
+  items: string[]; onChange: (items: string[]) => void; placeholder: string; addLabel: string;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+          <input placeholder={placeholder} value={item} onChange={e => { const n = [...items]; n[i] = e.target.value; onChange(n); }} style={{ ...IS, fontSize: 12, padding: '7px 10px' }} />
+          <button onClick={() => { const n = [...items]; n.splice(i, 1); onChange(n); }} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', padding: 4 }}><X size={13} /></button>
+        </div>
+      ))}
+      <button onClick={() => onChange([...items, ''])}
+        style={{ alignSelf: 'flex-start', background: '#002042', border: '1px solid #003866', color: '#aaa', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Plus size={11} /> {addLabel}
+      </button>
+    </div>
+  );
+}
+
 /* ── Tipos auxiliares do JSON de pacotes ── */
 type Incluso = { titulo?: string; descricao?: string };
 type OpcaoHospedagem = {
@@ -200,6 +292,8 @@ function parsePacotes(raw?: string): PacotesObj {
   if (Array.isArray(parsed)) return { ...base, opcoes_hospedagem: parsed };
   return { ...base, ...parsed, datas: { ...base.datas, ...(parsed.datas || {}) }, inclusos: parsed.inclusos || [], opcoes_hospedagem: parsed.opcoes_hospedagem || [] };
 }
+
+type DestinoLifestyle = { titulo?: string; descricao?: string; items?: string[]; imagens?: string[]; invertido?: boolean };
 
 /* ── Editor de lista de "inclusos" (título + descrição) ── */
 function InclusosEditor({ items, onChange, addLabel }: {
@@ -230,12 +324,20 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
   onUpdate: (d: Partial<TrendingPackage>) => void;
   tokenKey: string;
 }) {
+  const bank = splitList(pkg.galleryImages);
   const pacotes = parsePacotes(pkg.pacotesOptionsData);
   const setPacotes = (obj: PacotesObj) => onUpdate({ pacotesOptionsData: JSON.stringify(obj) });
   const prog = parseJSONSafe<any[]>(pkg.programacaoData, []);
   const setProg = (p: any[]) => onUpdate({ programacaoData: JSON.stringify(p) });
   const cards = parseJSONSafe<any[]>(pkg.cardsData, []);
   const setCards = (c: any[]) => onUpdate({ cardsData: JSON.stringify(c) });
+  const experienciaItems = splitList(pkg.experienciaItems);
+  const destino = parseJSONSafe<DestinoLifestyle>(pkg.destinoLifestyleData, {});
+  const setDestino = (d: DestinoLifestyle) => onUpdate({ destinoLifestyleData: JSON.stringify(d) });
+
+  // Visibilidade das seções opcionais da LP (visíveis por padrão)
+  const vis: Record<string, boolean> = { experiencia: true, destino: true, ...parseJSONSafe<Record<string, boolean>>(pkg.lpSections, {}) };
+  const setVis = (key: string, value: boolean) => onUpdate({ lpSections: JSON.stringify({ ...vis, [key]: value }) });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -432,19 +534,61 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
         </div>
       </LPSection>
 
-      {/* ══ SEÇÃO 5 — EXPERIÊNCIA + BANCO DE IMAGENS ══ */}
-      <LPSection badge="Seção 5 da LP" title="Experiência" icon={Star} color="#8b5cf6"
-        subtitle='Bloco "Uma Experiência Inesquecível": texto à esquerda e as 2 PRIMEIRAS fotos do Banco de Imagens à direita.'>
+      {/* ══ SEÇÃO 5 — EXPERIÊNCIAS + BANCO DE IMAGENS ══ */}
+      <LPSection badge="Seção 5 da LP" title="Experiências" icon={Star} color="#8b5cf6"
+        toggle={{ on: vis.experiencia, onChange: v => setVis('experiencia', v) }}
+        subtitle='Bloco "Uma Experiência Inesquecível": subtítulo + lista de experiências exclusivas à esquerda, fotos escolhidas do Banco de Imagens à direita.'>
         <div style={{ display: 'grid', gap: 12 }}>
           <div style={fieldCol}>
-            <label style={lbl}>Texto da seção</label>
-            <textarea rows={4} value={pkg.experienciaSection || ''} onChange={e => onUpdate({ experienciaSection: e.target.value })}
+            <label style={lbl}>Subtítulo da seção</label>
+            <textarea rows={3} value={pkg.experienciaSection || ''} onChange={e => onUpdate({ experienciaSection: e.target.value })}
               placeholder="Nossos pacotes garantem que você vivencie cada momento memorável com conforto, segurança e acesso a áreas exclusivas..." style={{ ...IS, resize: 'vertical' }} />
           </div>
           <div style={fieldCol}>
-            <label style={lbl}><Images size={10} /> Banco de Imagens (as 2 primeiras aparecem na seção)</label>
+            <label style={lbl}>Experiências exclusivas (lista de itens)</label>
+            <SimpleListEditor items={experienciaItems} placeholder="Ex: Acesso aos boxes e paddock"
+              addLabel="Adicionar experiência" onChange={items => onUpdate({ experienciaItems: joinList(items) })} />
+          </div>
+          <div style={fieldCol}>
+            <label style={lbl}><Images size={10} /> Banco de Imagens</label>
             <ImageBankManager value={pkg.galleryImages || ''} onChange={v => onUpdate({ galleryImages: v })} tokenKey={tokenKey} />
           </div>
+          <div style={fieldCol}>
+            <label style={lbl}>Fotos desta seção (clique para selecionar do banco)</label>
+            <BankPicker bank={bank} multiple selected={splitList(pkg.experienciaImages)}
+              onChange={urls => onUpdate({ experienciaImages: joinList(urls) })} />
+          </div>
+        </div>
+      </LPSection>
+
+      {/* ══ SEÇÃO 6 — DESTINO & LIFESTYLE ══ */}
+      <LPSection badge="Seção 6 da LP" title="Destino & Lifestyle" icon={MapPin} color="#06b6d4"
+        toggle={{ on: vis.destino, onChange: v => setVis('destino', v) }}
+        subtitle="Apresenta a cidade/destino do evento: título, breve descrição, atrativos locais e fotos escolhidas do Banco de Imagens. Fica oculta automaticamente se título e descrição estiverem vazios.">
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={fieldCol}>
+            <label style={lbl}>Título</label>
+            <input placeholder="Ex: Milão te espera" value={destino.titulo || ''} onChange={e => setDestino({ ...destino, titulo: e.target.value })} style={IS} />
+          </div>
+          <div style={fieldCol}>
+            <label style={lbl}>Descrição breve da cidade</label>
+            <textarea rows={3} value={destino.descricao || ''} onChange={e => setDestino({ ...destino, descricao: e.target.value })}
+              placeholder="Capital da moda e do design, Milão combina história centenária com um estilo de vida vibrante..." style={{ ...IS, resize: 'vertical' }} />
+          </div>
+          <div style={fieldCol}>
+            <label style={lbl}>Atrativos da cidade (lista de itens)</label>
+            <SimpleListEditor items={destino.items || []} placeholder="Ex: Duomo di Milano a poucos minutos do hotel"
+              addLabel="Adicionar atrativo" onChange={items => setDestino({ ...destino, items })} />
+          </div>
+          <div style={fieldCol}>
+            <label style={lbl}>Fotos desta seção (clique para selecionar do banco)</label>
+            <BankPicker bank={bank} multiple selected={destino.imagens || []}
+              onChange={urls => setDestino({ ...destino, imagens: urls })} />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#aaa', cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!destino.invertido} onChange={e => setDestino({ ...destino, invertido: e.target.checked })} />
+            Texto à esquerda / fotos à direita (padrão é fotos à esquerda / texto à direita)
+          </label>
         </div>
       </LPSection>
     </div>

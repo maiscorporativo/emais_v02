@@ -68,7 +68,11 @@ export interface TrendingPackage {
   cardsData?: string; // JSON string para Cards de Experiência
   programacaoData?: string; // JSON string para dias e programação
   pacotesOptionsData?: string; // JSON string para opções de pacotes
-  experienciaSection?: string; // JSON string ou texto da seção Experiência
+  experienciaSection?: string; // Texto/subtítulo da seção Experiências
+  experienciaItems?: string; // Lista de "experiências exclusivas" (itens separados por ";")
+  experienciaImages?: string; // Imagens escolhidas do Banco de Imagens para a seção Experiências (URLs separadas por ";")
+  destinoLifestyleData?: string; // JSON { titulo, descricao, items: string[], imagens: string[], invertido } — seção Destino & Lifestyle
+  lpSections?: string; // JSON de visibilidade de seções opcionais da LP: { experiencia, destino } — true por padrão
   partnershipSection?: string; // JSON string ou boolean para parceria
   /* ── Soft-delete ── */
   deletedAt?: string;
