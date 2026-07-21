@@ -28,6 +28,25 @@ const ORDEM = `ordem_${PORTAL}`;
 
 export { sharedDbEnabled };
 
+/** Domínio público de cada portal — cada um guarda seus uploads no PRÓPRIO
+ *  servidor, então um pacote de outra origem precisa referenciar a imagem
+ *  pela URL absoluta do domínio dono, e não por um caminho relativo
+ *  /uploads/... (que resolveria contra o domínio ERRADO ao ser exibido). */
+const PORTAL_DOMAINS = {
+  gp: 'https://gpexperience.tur.br',
+  emais: 'https://emais.tur.br',
+  torcida: 'https://torcidaplacar.tur.br',
+};
+
+/** Reescreve /uploads/... para a URL absoluta do domínio de origem, operando
+ *  no texto bruto do payload (antes do JSON.parse) para alcançar também
+ *  campos aninhados/serializados (galleryImages, cardsData, etc). */
+function absolutizeUploads(payloadText, origem) {
+  const domain = PORTAL_DOMAINS[origem];
+  if (!domain || origem === PORTAL) return payloadText;
+  return payloadText.split('/uploads/').join(`${domain}/uploads/`);
+}
+
 /** Pacotes visíveis para este portal (GP filtra automobilismo), na ordem local. */
 export async function listSharedPackages() {
   const where = PORTAL === 'gp' ? "WHERE esporte = 'automobilismo'" : '';
@@ -37,7 +56,7 @@ export async function listSharedPackages() {
   const packages = [];
   for (const r of rows) {
     let pkg;
-    try { pkg = JSON.parse(r.payload) || {}; } catch { continue; }
+    try { pkg = JSON.parse(absolutizeUploads(r.payload, r.origem)) || {}; } catch { continue; }
     pkg.sharedId = r.id;
     pkg.origem = r.origem;
     pkg.portalHidden = !r[VIS];

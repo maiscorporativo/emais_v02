@@ -4,7 +4,7 @@ import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import PartnersMarquee from './components/PartnersMarquee';
 import TrendingPackages from './components/TrendingPackages';
-import PlatinumAccess from './components/PlatinumAccess';
+// import PlatinumAccess from './components/PlatinumAccess'; // desativado a pedido
 import ContactForm from './components/ContactForm';
 
 import Footer from './components/Footer';
@@ -44,7 +44,7 @@ function SitePage() {
       <TrendingPackages />
       <CategoriesSection />
       <ContactForm />
-      <PlatinumAccess />
+      {/* <PlatinumAccess /> — desativado a pedido, não necessário neste momento */}
 
       <Footer />
       <BackToTop />
