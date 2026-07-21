@@ -14,6 +14,9 @@
  */
 import express from 'express';
 import { runFullSetup } from '../setup-full.js';
+import pool from '../db.js';
+import { sharedPool, sharedDbEnabled } from '../shared-db.js';
+import { PORTAL } from '../shared-packages.js';
 
 const router = express.Router();
 
@@ -23,6 +26,44 @@ function requireSetupToken(req, res, next) {
   if (req.query.token !== configured) return res.status(401).json({ error: 'Token inválido' });
   next();
 }
+
+router.get('/status', requireSetupToken, async (req, res) => {
+  const lines = [];
+  lines.push(`Portal: ${PORTAL}`);
+  lines.push(`SHARED_DB_HOST: ${process.env.SHARED_DB_HOST || '(não definido, usa 127.0.0.1)'}`);
+  lines.push(`SHARED_DB_PORT: ${process.env.SHARED_DB_PORT || '(não definido, usa 3306)'}`);
+  lines.push(`SHARED_DB_NAME: ${process.env.SHARED_DB_NAME || '(NÃO DEFINIDO — integração desativada)'}`);
+  lines.push(`SHARED_DB_USER: ${process.env.SHARED_DB_USER || '(não definido)'}`);
+  lines.push(`Banco compartilhado ativo (sharedDbEnabled): ${sharedDbEnabled() ? 'SIM' : 'NÃO'}`);
+  lines.push('');
+
+  if (sharedDbEnabled()) {
+    try {
+      const [rows] = await sharedPool.query(
+        'SELECT id, origem, esporte, JSON_UNQUOTE(JSON_EXTRACT(payload, "$.title")) AS titulo FROM shared_packages ORDER BY id'
+      );
+      lines.push('✅ Conexão com o banco compartilhado OK.');
+      lines.push(`Total de pacotes na tabela shared_packages: ${rows.length}`);
+      for (const r of rows) lines.push(`  #${r.id} [origem: ${r.origem} / esporte: ${r.esporte}] "${r.titulo}"`);
+    } catch (err) {
+      lines.push(`❌ ERRO ao conectar/consultar o banco compartilhado: ${err.code || ''} ${err.message}`);
+    }
+  } else {
+    lines.push('⚠️ Integração desativada — defina SHARED_DB_NAME para ativar.');
+  }
+
+  lines.push('');
+  try {
+    const [rows] = await pool.query('SELECT packages FROM site_content WHERE id = 1');
+    const packages = rows.length ? JSON.parse(rows[0].packages || '[]') : [];
+    lines.push(`Pacotes no banco PRÓPRIO deste portal (site_content, legado/backup): ${packages.length}`);
+    for (const p of packages) lines.push(`  - "${p.title}" (origem: ${p.origem || 'local, ainda não sincronizado'})`);
+  } catch (err) {
+    lines.push(`❌ ERRO ao consultar o banco próprio: ${err.message}`);
+  }
+
+  res.type('text/plain').send(lines.join('\n'));
+});
 
 router.get('/full-setup', requireSetupToken, async (req, res) => {
   try {
