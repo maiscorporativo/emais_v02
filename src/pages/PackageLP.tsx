@@ -539,6 +539,18 @@ export default function PackageLP() {
   // Fundo customizado (imagem ou vídeo) por seção, configurável no admin
   const bgs: Record<string, { type?: 'image' | 'video'; url?: string }> = parseJSON(pkg.lpBackgrounds, {});
 
+  // Imagens escolhidas no admin para a seção Experiências (experienciaImages);
+  // se não houver, usa as 2 primeiras do Banco de Imagens como fallback.
+  // Imagens que foram removidas do banco ("órfãs") são ignoradas.
+  const experienciaBank = (pkg.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
+  const experienciaPicked = (pkg.experienciaImages || '').split(';').map(s => s.trim()).filter(Boolean).filter(u => experienciaBank.includes(u));
+  const experienciaImgs = experienciaPicked.length > 0 ? experienciaPicked : experienciaBank.slice(0, 2);
+  // Com mais de 6 fotos, só as 4 primeiras ficam ao lado do texto (alinhadas
+  // com sua altura); o restante desce para uma grade em largura total abaixo
+  // do bloco de texto, em vez de continuar empilhando na coluna estreita.
+  const experienciaTopImgs = experienciaImgs.length > 6 ? experienciaImgs.slice(0, 4) : experienciaImgs;
+  const experienciaOverflowImgs = experienciaImgs.length > 6 ? experienciaImgs.slice(4) : [];
+
   const sport = pkg.sportType || 'automobilismo';
 
   const sportEventText = sport === 'futebol' ? 'da partida' : sport === 'tenis' ? 'do torneio' : sport === 'basquete' ? 'do jogo' : sport === 'lutas' ? 'da luta' : 'da corrida';
@@ -870,42 +882,39 @@ export default function PackageLP() {
       {vis.experiencia && (
       <section id="experiencia" style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#001529', position: 'relative', overflow: 'hidden' }}>
         <SectionBackground bg={bgs.experiencia} />
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center', position: 'relative', zIndex: 1 }}>
-          <div>
-            <h2 style={{ fontSize: isMobile ? '2.2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, margin: '0 0 24px', lineHeight: 1.1 }}>Uma Experiência <span style={{ color: '#f7ad40' }}>Inesquecível</span></h2>
-            <div style={{ fontSize: isMobile ? 14 : 16, color: '#aaa', lineHeight: 1.8 }} dangerouslySetInnerHTML={{ __html: pkg.experienciaSection || 'Nossos pacotes garantem que você vivencie cada momento memorável com conforto, segurança e acesso a áreas exclusivas que a maioria dos visitantes nunca experimenta.' }} />
-            {(pkg.experienciaItems || '').split(';').map(s => s.trim()).filter(Boolean).length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 28 }}>
-                {(pkg.experienciaItems || '').split(';').map(s => s.trim()).filter(Boolean).map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 22, height: 22, background: '#f7ad40', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <CheckCircle2 size={13} color="#002042" />
+        <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center' }}>
+            <div>
+              <h2 style={{ fontSize: isMobile ? '2.2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, margin: '0 0 24px', lineHeight: 1.1 }}>Uma Experiência <span style={{ color: '#f7ad40' }}>Inesquecível</span></h2>
+              <div style={{ fontSize: isMobile ? 14 : 16, color: '#aaa', lineHeight: 1.8 }} dangerouslySetInnerHTML={{ __html: pkg.experienciaSection || 'Nossos pacotes garantem que você vivencie cada momento memorável com conforto, segurança e acesso a áreas exclusivas que a maioria dos visitantes nunca experimenta.' }} />
+              {(pkg.experienciaItems || '').split(';').map(s => s.trim()).filter(Boolean).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 28 }}>
+                  {(pkg.experienciaItems || '').split(';').map(s => s.trim()).filter(Boolean).map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 22, height: 22, background: '#f7ad40', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <CheckCircle2 size={13} color="#002042" />
+                      </div>
+                      <span style={{ fontSize: isMobile ? 14 : 15, fontWeight: 600, color: '#eee' }}>{item}</span>
                     </div>
-                    <span style={{ fontSize: isMobile ? 14 : 15, fontWeight: 600, color: '#eee' }}>{item}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div>
-            {(() => {
-              // Usa as imagens escolhidas no admin (experienciaImages); se não houver,
-              // usa as 2 primeiras do Banco de Imagens como fallback. Imagens que foram
-              // removidas do banco ("órfãs") são ignoradas automaticamente.
-              const bank = (pkg.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
-              const picked = (pkg.experienciaImages || '').split(';').map(s => s.trim()).filter(Boolean).filter(u => bank.includes(u));
-              const imgs = picked.length > 0 ? picked : bank.slice(0, 2);
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: imgs.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
-                  {imgs.length > 0 ? imgs.map((img, i) => (
-                    <img key={i} src={fixImgPath(img)} alt="Experiência" style={{ width: '100%', height: imgs.length > 1 ? 220 : 380, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
-                  )) : (
-                    <div style={{ width: '100%', height: 380, background: '#002042', borderRadius: 24, border: '1px solid #003866' }} />
-                  )}
+                  ))}
                 </div>
-              );
-            })()}
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: experienciaTopImgs.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
+              {experienciaTopImgs.length > 0 ? experienciaTopImgs.map((img, i) => (
+                <img key={i} src={fixImgPath(img)} alt="Experiência" style={{ width: '100%', height: experienciaTopImgs.length > 1 ? 220 : 380, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
+              )) : (
+                <div style={{ width: '100%', height: 380, background: '#002042', borderRadius: 24, border: '1px solid #003866' }} />
+              )}
+            </div>
           </div>
+          {experienciaOverflowImgs.length > 0 && (
+            <div style={{ marginTop: isMobile ? 20 : 24, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+              {experienciaOverflowImgs.map((img, i) => (
+                <img key={i} src={fixImgPath(img)} alt="Experiência" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
       )}
@@ -918,10 +927,14 @@ export default function PackageLP() {
         const bank = (pkg.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
         const imgs: string[] = (destino.imagens || []).filter((u: string) => bank.includes(u));
         const items: string[] = (destino.items || []).filter(Boolean);
+        // Com mais de 6 fotos, só as 4 primeiras ficam alinhadas com o texto;
+        // o restante desce para uma grade em largura total abaixo do bloco.
+        const topImgs = imgs.length > 6 ? imgs.slice(0, 4) : imgs;
+        const overflowImgs = imgs.length > 6 ? imgs.slice(4) : [];
         const fotos = (
-          <div style={{ display: 'grid', gridTemplateColumns: imgs.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
-            {imgs.length > 0 ? imgs.map((img, i) => (
-              <img key={i} src={fixImgPath(img)} alt={destino.titulo || 'Destino'} style={{ width: '100%', height: imgs.length > 1 ? 220 : 380, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: topImgs.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
+            {topImgs.length > 0 ? topImgs.map((img, i) => (
+              <img key={i} src={fixImgPath(img)} alt={destino.titulo || 'Destino'} style={{ width: '100%', height: topImgs.length > 1 ? 220 : 380, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
             )) : (
               <div style={{ width: '100%', height: 380, background: '#002042', borderRadius: 24, border: '1px solid #003866' }} />
             )}
@@ -950,8 +963,17 @@ export default function PackageLP() {
         return (
           <section style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#002042', borderTop: '1px solid #003866', borderBottom: '1px solid #003866', position: 'relative', overflow: 'hidden' }}>
             <SectionBackground bg={bgs.destino} />
-            <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center', position: 'relative', zIndex: 1 }}>
-              {destino.invertido ? <>{texto}{fotos}</> : <>{fotos}{texto}</>}
+            <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center' }}>
+                {destino.invertido ? <>{texto}{fotos}</> : <>{fotos}{texto}</>}
+              </div>
+              {overflowImgs.length > 0 && (
+                <div style={{ marginTop: isMobile ? 20 : 24, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                  {overflowImgs.map((img, i) => (
+                    <img key={i} src={fixImgPath(img)} alt={destino.titulo || 'Destino'} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         );
