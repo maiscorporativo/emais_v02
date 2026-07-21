@@ -19,16 +19,18 @@ function loadOverrides(): ImageOverrides {
   } catch { return {}; }
 }
 
-async function pushHeroToApi(overrides: ImageOverrides) {
+async function pushHeroToApi(overrides: ImageOverrides, replace = false) {
   try {
-    // Read current content from cache and attach updated hero images
-    const contentRaw = localStorage.getItem('emais_content_cache');
-    const content = contentRaw ? JSON.parse(contentRaw) : {};
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${getSessionToken()}`,
     };
-    const payload = { ...content, heroImages: overrides };
+    // Cada HeroImageRow tem sua própria instância deste hook e só conhece seu
+    // próprio subconjunto de imagens — por isso o servidor faz merge por
+    // chave por padrão. replace=true (reset geral / importar config) força
+    // substituição total do objeto heroImages.
+    const payload: Record<string, unknown> = { heroImages: overrides };
+    if (replace) payload.heroImagesReplace = true;
     // Rota Base64 (imune ao firewall/ModSecurity da hospedagem, que bloqueia
     // com 403 corpos contendo HTML/scripts, ex: snippets do Mautic em cache);
     // 404 = servidor antigo → cai para a rota legada.
@@ -86,7 +88,10 @@ export function useImageConfig() {
       const next = { ...prev, [key]: url };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       window.dispatchEvent(new Event(UPDATE_EVENT));
-      pushHeroToApi(next);
+      // Envia só a própria chave — o servidor faz o merge, então esta linha
+      // nunca depende do seu próprio snapshot local estar em dia com o que
+      // as outras linhas já salvaram.
+      pushHeroToApi({ [key]: url });
       return next;
     });
   }, []);
@@ -95,7 +100,7 @@ export function useImageConfig() {
     localStorage.removeItem(STORAGE_KEY);
     setOverrides({});
     window.dispatchEvent(new Event(UPDATE_EVENT));
-    pushHeroToApi({});
+    pushHeroToApi({}, true);
   }, []);
 
   const exportConfig = useCallback((): string => JSON.stringify(overrides, null, 2), [overrides]);
@@ -106,7 +111,7 @@ export function useImageConfig() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       setOverrides(parsed);
       window.dispatchEvent(new Event(UPDATE_EVENT));
-      pushHeroToApi(parsed);
+      pushHeroToApi(parsed, true);
       return true;
     } catch { return false; }
   }, []);

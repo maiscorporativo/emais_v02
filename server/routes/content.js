@@ -128,7 +128,7 @@ router.get('/', async (req, res) => {
 /* ── Gravação compartilhada pelas duas rotas de PUT ───────────── */
 async function saveContent(body, res) {
   try {
-    const { events, packages, testimonials, heroImages, categories, categoryIcons } = body;
+    const { events, packages, testimonials, heroImages, heroImagesReplace, categories, categoryIcons } = body;
 
     /* Integração ativa: sincroniza os pacotes com a tabela compartilhada
        (conteúdo só é gravado para pacotes de origem própria; para os demais,
@@ -153,7 +153,26 @@ async function saveContent(body, res) {
     const finalEvents       = events       !== undefined ? JSON.stringify(events)       : (existing.events       || JSON.stringify(DEFAULT_EVENTS));
     const finalPackages     = backupPackages !== undefined ? JSON.stringify(backupPackages) : (existing.packages  || JSON.stringify(DEFAULT_PACKAGES));
     const finalTestimonials = testimonials !== undefined ? JSON.stringify(testimonials) : (existing.testimonials || JSON.stringify(DEFAULT_TESTIMONIALS));
-    const finalHeroImages   = heroImages   !== undefined ? JSON.stringify(heroImages)   : (existing.hero_images   || JSON.stringify(DEFAULT_HERO_IMAGES));
+
+    /* heroImages é editado por várias linhas independentes do admin (uma por
+       imagem da galeria), cada uma só conhecendo seu próprio subconjunto.
+       Requisições concorrentes podem completar fora de ordem — se a última a
+       terminar carregasse um snapshot mais antigo/parcial, ela apagava as
+       imagens salvas pelas outras linhas. Por isso o padrão aqui é MERGE por
+       chave com o valor já salvo; só reset/import (heroImagesReplace: true)
+       substitui o objeto inteiro. */
+    let finalHeroImages;
+    if (heroImages !== undefined) {
+      if (heroImagesReplace) {
+        finalHeroImages = JSON.stringify(heroImages);
+      } else {
+        const existingHero = parseField(existing.hero_images, DEFAULT_HERO_IMAGES);
+        finalHeroImages = JSON.stringify({ ...existingHero, ...heroImages });
+      }
+    } else {
+      finalHeroImages = existing.hero_images || JSON.stringify(DEFAULT_HERO_IMAGES);
+    }
+
     const finalCategories   = categories   !== undefined ? JSON.stringify(categories)   : (existing.categories   || JSON.stringify(DEFAULT_CATEGORIES));
     const finalIcons        = categoryIcons !== undefined ? JSON.stringify(categoryIcons) : (existing.category_icons || '{}');
 
