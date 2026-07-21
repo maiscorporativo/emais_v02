@@ -887,7 +887,7 @@ export default function PackageLP() {
               </div>
             )}
           </div>
-          <div style={{ display: 'grid', gap: 20 }}>
+          <div>
             {(() => {
               // Usa as imagens escolhidas no admin (experienciaImages); se não houver,
               // usa as 2 primeiras do Banco de Imagens como fallback. Imagens que foram
@@ -895,12 +895,14 @@ export default function PackageLP() {
               const bank = (pkg.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
               const picked = (pkg.experienciaImages || '').split(';').map(s => s.trim()).filter(Boolean).filter(u => bank.includes(u));
               const imgs = picked.length > 0 ? picked : bank.slice(0, 2);
-              return imgs.length > 0 ? (
-                imgs.map((img, i) => (
-                  <img key={i} src={fixImgPath(img)} alt="Experiência" style={{ width: '100%', borderRadius: 24, border: '1px solid #003866' }} />
-                ))
-              ) : (
-                <div style={{ width: '100%', height: 300, background: '#002042', borderRadius: 24, border: '1px solid #003866' }} />
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: imgs.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
+                  {imgs.length > 0 ? imgs.map((img, i) => (
+                    <img key={i} src={fixImgPath(img)} alt="Experiência" style={{ width: '100%', height: imgs.length > 1 ? 220 : 380, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
+                  )) : (
+                    <div style={{ width: '100%', height: 380, background: '#002042', borderRadius: 24, border: '1px solid #003866' }} />
+                  )}
+                </div>
               );
             })()}
           </div>
