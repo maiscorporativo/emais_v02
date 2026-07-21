@@ -15,11 +15,18 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { runFullSetup } from '../setup-full.js';
 import pool from '../db.js';
 import { sharedPool, sharedDbEnabled } from '../shared-db.js';
 import { PORTAL } from '../shared-packages.js';
 import { uploadsDir } from './upload.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Pasta public/uploads DENTRO da área de deploy (a que os deploys apagam) —
+// diferente de uploadsDir (UPLOADS_DIR, persistente). Útil para checar se
+// arquivos antigos ainda estão lá, mesmo sem o app servi-los mais dali.
+const deployUploadsDir = path.join(__dirname, '..', '..', 'public', 'uploads');
 
 const router = express.Router();
 
@@ -72,19 +79,22 @@ router.get('/status', requireSetupToken, async (req, res) => {
  *  de imagens — lê o arquivo direto no disco pelo próprio app Node. */
 router.get('/check-upload', requireSetupToken, (req, res) => {
   const lines = [];
+  const isDeploy = req.query.area === 'deploy';
+  const dir = isDeploy ? deployUploadsDir : uploadsDir;
+  lines.push(`Área: ${isDeploy ? 'deploy (public/uploads — apagada a cada deploy)' : 'persistente (UPLOADS_DIR)'}`);
   lines.push(`UPLOADS_DIR configurado: ${process.env.UPLOADS_DIR || '(não definido — usando public/uploads local)'}`);
-  lines.push(`Caminho resolvido: ${uploadsDir}`);
-  lines.push(`Pasta existe: ${fs.existsSync(uploadsDir) ? 'SIM' : 'NÃO'}`);
+  lines.push(`Caminho resolvido: ${dir}`);
+  lines.push(`Pasta existe: ${fs.existsSync(dir) ? 'SIM' : 'NÃO'}`);
   lines.push('');
 
   const file = req.query.file;
   if (!file) {
     try {
-      const all = fs.readdirSync(uploadsDir);
+      const all = fs.readdirSync(dir);
       lines.push(`Total de arquivos na pasta: ${all.length}`);
-      lines.push('Use ?file=NOME_DO_ARQUIVO para checar um específico. Primeiros 20:');
-      for (const f of all.slice(0, 20)) {
-        const stat = fs.statSync(path.join(uploadsDir, f));
+      lines.push('Use ?file=NOME_DO_ARQUIVO para checar um específico (ou &area=deploy para ver a outra pasta). Primeiros 30:');
+      for (const f of all.slice(0, 30)) {
+        const stat = fs.statSync(path.join(dir, f));
         lines.push(`  ${f} — ${stat.size} bytes`);
       }
     } catch (err) {
@@ -92,7 +102,7 @@ router.get('/check-upload', requireSetupToken, (req, res) => {
     }
   } else {
     const safeName = path.basename(file); // evita path traversal
-    const filePath = path.join(uploadsDir, safeName);
+    const filePath = path.join(dir, safeName);
     try {
       const stat = fs.statSync(filePath);
       lines.push(`Arquivo: ${safeName}`);
