@@ -443,6 +443,8 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
             <option value="geral">🏆 Geral</option>
           </select>
         </div>
+        <LPImageInput label="Imagem customizada do canto (opcional — substitui o mascote/jogador/carro padrão do esporte acima)"
+          value={pkg.cornerImage || ''} onChange={url => onUpdate({ cornerImage: url })} tokenKey={tokenKey} />
       </LPSection>
 
       {/* ══ SEÇÃO 1 — HERO ══ */}

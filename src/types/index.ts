@@ -64,6 +64,7 @@ export interface TrendingPackage {
   highlights?: string; // Semicolon separated features/highlights
   sectionBackground?: string;
   sportType?: string; // Ex: 'automobilismo', 'futebol', 'tenis', etc.
+  cornerImage?: string; // Imagem customizada do canto inferior direito da LP — substitui o mascote/jogador/carro padrão do sportType quando definida
   /* ── New GP Experience LP Sections ── */
   cardsData?: string; // JSON string para Cards de Experiência
   programacaoData?: string; // JSON string para dias e programação

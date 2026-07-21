@@ -122,7 +122,7 @@ function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMo
 
 /* --- Football Kick Animation Component --- */
 /* --- Sport Ball Scroll Animation Component --- */
-function SportBall({ sport }: { sport: string }) {
+function SportBall({ sport, customImage }: { sport: string; customImage?: string }) {
   const [rotation, setRotation] = useState(0);
   const [scrollPercent, setScrollPercent] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -160,6 +160,23 @@ function SportBall({ sport }: { sport: string }) {
       alignItems: 'center',
       justifyContent: 'center'
     }}>
+      {customImage ? (
+        <img
+          src={fixImgPath(customImage)}
+          alt="Decoração"
+          style={{
+            position: 'absolute',
+            width: '55%',
+            height: '55%',
+            objectFit: 'contain',
+            transform: isMobile
+              ? `translate(90px, 90px) rotate(${rotation * 0.15}deg)`
+              : `translate(280px, 260px) rotate(${rotation * 0.15}deg)`,
+            filter: 'drop-shadow(0 15px 45px rgba(0,0,0,0.5))',
+          }}
+        />
+      ) : (
+      <>
       {sport === 'tenis' && (
         <img
           src={fixImgPath('raquete.png')}
@@ -267,6 +284,8 @@ function SportBall({ sport }: { sport: string }) {
             filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))'
           }}
         />
+      )}
+      </>
       )}
     </div>
   );
@@ -562,7 +581,7 @@ export default function PackageLP() {
   return (
     <div style={{ background: '#001529', color: '#fff', fontFamily: 'Montserrat, sans-serif', minHeight: '100vh', overflowX: 'hidden' }}>
       <PackageNavbar onBook={() => document.getElementById('conversion-section')?.scrollIntoView({ behavior: 'smooth' })} isMobile={isMobile} />
-      {(sport === 'futebol' || sport === 'tenis' || sport === 'basquete' || sport === 'lutas' || sport === 'automobilismo') && <SportBall sport={sport} />}
+      {(pkg.cornerImage || sport === 'futebol' || sport === 'tenis' || sport === 'basquete' || sport === 'lutas' || sport === 'automobilismo') && <SportBall sport={sport} customImage={pkg.cornerImage} />}
 
       {/* --- HERO SECTION --- */}
       <section style={{ position: 'relative', height: '100vh', minHeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
