@@ -13,10 +13,13 @@
  * conhecidas, então não deve ficar exposta indefinidamente em produção.
  */
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
 import { runFullSetup } from '../setup-full.js';
 import pool from '../db.js';
 import { sharedPool, sharedDbEnabled } from '../shared-db.js';
 import { PORTAL } from '../shared-packages.js';
+import { uploadsDir } from './upload.js';
 
 const router = express.Router();
 
@@ -60,6 +63,50 @@ router.get('/status', requireSetupToken, async (req, res) => {
     for (const p of packages) lines.push(`  - "${p.title}" (origem: ${p.origem || 'local, ainda não sincronizado'})`);
   } catch (err) {
     lines.push(`❌ ERRO ao consultar o banco próprio: ${err.message}`);
+  }
+
+  res.type('text/plain').send(lines.join('\n'));
+});
+
+/** Diagnostica um arquivo dentro de UPLOADS_DIR sem passar pela CDN/otimizador
+ *  de imagens — lê o arquivo direto no disco pelo próprio app Node. */
+router.get('/check-upload', requireSetupToken, (req, res) => {
+  const lines = [];
+  lines.push(`UPLOADS_DIR configurado: ${process.env.UPLOADS_DIR || '(não definido — usando public/uploads local)'}`);
+  lines.push(`Caminho resolvido: ${uploadsDir}`);
+  lines.push(`Pasta existe: ${fs.existsSync(uploadsDir) ? 'SIM' : 'NÃO'}`);
+  lines.push('');
+
+  const file = req.query.file;
+  if (!file) {
+    try {
+      const all = fs.readdirSync(uploadsDir);
+      lines.push(`Total de arquivos na pasta: ${all.length}`);
+      lines.push('Use ?file=NOME_DO_ARQUIVO para checar um específico. Primeiros 20:');
+      for (const f of all.slice(0, 20)) {
+        const stat = fs.statSync(path.join(uploadsDir, f));
+        lines.push(`  ${f} — ${stat.size} bytes`);
+      }
+    } catch (err) {
+      lines.push(`❌ ERRO ao listar a pasta: ${err.message}`);
+    }
+  } else {
+    const safeName = path.basename(file); // evita path traversal
+    const filePath = path.join(uploadsDir, safeName);
+    try {
+      const stat = fs.statSync(filePath);
+      lines.push(`Arquivo: ${safeName}`);
+      lines.push(`Tamanho: ${stat.size} bytes`);
+      const buf = fs.readFileSync(filePath);
+      const magic = buf.subarray(0, 8).toString('hex');
+      lines.push(`Primeiros bytes (hex): ${magic}`);
+      const isPng = magic.startsWith('89504e47');
+      const isJpeg = magic.startsWith('ffd8ff');
+      const isWebp = buf.subarray(8, 12).toString('ascii') === 'WEBP';
+      lines.push(`Assinatura reconhecida: ${isPng ? 'PNG válido' : isJpeg ? 'JPEG válido' : isWebp ? 'WEBP válido' : 'NÃO reconhecida — arquivo pode estar corrompido'}`);
+    } catch (err) {
+      lines.push(`❌ ERRO ao ler "${safeName}": ${err.message}`);
+    }
   }
 
   res.type('text/plain').send(lines.join('\n'));
