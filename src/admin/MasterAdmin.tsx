@@ -625,13 +625,6 @@ export default function MasterAdmin() {
   const { packages, approvePackage, rejectPackage, masterUpdatePackage, removePackage, restorePackage, permanentRemovePackage, saveError } = useContentConfig();
   const { toast } = useToast();
 
-  // Exibe toast de erro quando o servidor falhar ao salvar
-  useEffect(() => {
-    if (saveError) {
-      toast(`Erro ao salvar: ${saveError}. Suas alterações estão seguras aqui — reinicie o servidor e tente novamente.`, 'error');
-    }
-  }, [saveError, toast]);
-
   const logout = useCallback(async () => {
     const token = localStorage.getItem('emais_master_token');
     if (token) await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
@@ -639,6 +632,15 @@ export default function MasterAdmin() {
     localStorage.removeItem('emais_master_token');
     setAuthed(false);
   }, []);
+
+  // Exibe toast de erro quando o servidor falhar ao salvar. Sessão
+  // expirada/inválida também derruba de volta pro login — continuar editando
+  // contra uma sessão morta só perde mais trabalho do usuário.
+  useEffect(() => {
+    if (!saveError) return;
+    toast(`Erro ao salvar: ${saveError}`, 'error');
+    if (/sess[ãa]o/i.test(saveError)) logout();
+  }, [saveError, toast, logout]);
 
   if (!authed) return <MasterLogin onLogin={() => setAuthed(true)} />;
 

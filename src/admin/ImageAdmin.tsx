@@ -1520,13 +1520,24 @@ export default function ImageAdmin() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // Exibe toast quando o servidor falhar ao salvar
+  const logout = useCallback(async () => {
+    const token = localStorage.getItem('emais_admin_token');
+    if (token) await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('emais_admin_token');
+    setAuthed(false);
+  }, []);
+
+  // Exibe toast quando o servidor falhar ao salvar. Sessão expirada/inválida
+  // também derruba de volta pro login — continuar editando contra uma
+  // sessão morta só perde mais trabalho do usuário (edição fica só na tela,
+  // parece salva, e ao reabrir aparece revertida).
   useEffect(() => {
-    if (saveError) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      showToast('Não foi possível salvar no servidor. As alterações foram mantidas localmente — reinicie o servidor e salve novamente.', 'error');
-    }
-  }, [saveError, showToast]);
+    if (!saveError) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    showToast(`Erro ao salvar: ${saveError}`, 'error');
+    if (/sess[ãa]o/i.test(saveError)) logout();
+  }, [saveError, showToast, logout]);
 
   const handleExport = () => {
     const data = { content: JSON.parse(exportContent()), images: JSON.parse(exportImages()) };
@@ -1588,13 +1599,7 @@ export default function ImageAdmin() {
           <button onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: 'none', background: '#1f1f1f', color: '#f7ad40' }}>
             <Eye size={14} /> Ver Site
           </button>
-          <button onClick={async () => {
-            const token = localStorage.getItem('emais_admin_token');
-            if (token) await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-            localStorage.removeItem(AUTH_KEY);
-            localStorage.removeItem('emais_admin_token');
-            setAuthed(false);
-          }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: 'none', background: 'transparent', color: '#737373', textAlign: 'left' }}>
+          <button onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: 'none', background: 'transparent', color: '#737373', textAlign: 'left' }}>
             <LogOut size={14} /> Sair
           </button>
         </div>

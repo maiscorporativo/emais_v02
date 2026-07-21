@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   LogOut, Package, Code, Link as LinkIcon,
   Save, Search, ExternalLink, Activity,
@@ -236,7 +236,8 @@ export default function MarketingPanel() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem(MARKETING_AUTH_KEY));
   const [search, setSearch] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const { packages, marketingUpdatePackage, loading: loadingContent } = useContentConfig();
+  const { packages, marketingUpdatePackage, loading: loadingContent, saveError } = useContentConfig();
+  const { toast } = useToast();
 
   const logout = useCallback(() => {
     const token = localStorage.getItem(MARKETING_TOKEN_KEY);
@@ -245,6 +246,17 @@ export default function MarketingPanel() {
     localStorage.removeItem(MARKETING_TOKEN_KEY);
     setAuthed(false);
   }, []);
+
+  // Sem isso, um save que falha (ex: sessão expirada) não avisa ninguém — a
+  // edição fica só na tela, o usuário acha que salvou, e ao reabrir o pacote
+  // vê tudo revertido. Sessão expirada/inválida também derruba de volta pro
+  // login, já que continuar editando contra uma sessão morta só perde mais
+  // trabalho do usuário.
+  useEffect(() => {
+    if (!saveError) return;
+    toast(`Erro ao salvar: ${saveError}`, 'error');
+    if (/sess[ãa]o/i.test(saveError)) logout();
+  }, [saveError, toast, logout]);
 
   if (!authed) return <MarketingLogin onLogin={() => setAuthed(true)} />;
 
