@@ -909,7 +909,7 @@ export default function PackageLP() {
             </div>
           </div>
           {experienciaOverflowImgs.length > 0 && (
-            <div style={{ marginTop: isMobile ? 20 : 24, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+            <div style={{ marginTop: isMobile ? 20 : 24, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 16 }}>
               {experienciaOverflowImgs.map((img, i) => (
                 <img key={i} src={fixImgPath(img)} alt="Experiência" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
               ))}
@@ -968,7 +968,7 @@ export default function PackageLP() {
                 {destino.invertido ? <>{texto}{fotos}</> : <>{fotos}{texto}</>}
               </div>
               {overflowImgs.length > 0 && (
-                <div style={{ marginTop: isMobile ? 20 : 24, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                <div style={{ marginTop: isMobile ? 20 : 24, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 16 }}>
                   {overflowImgs.map((img, i) => (
                     <img key={i} src={fixImgPath(img)} alt={destino.titulo || 'Destino'} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
                   ))}
