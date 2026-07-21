@@ -221,18 +221,22 @@ export function useContentConfig() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refetch]);
 
-  /* ── Save helper ── */
+  /* ── Save helper ──
+     Salva sempre em série (nunca duas requisições PUT em paralelo): se uma
+     edição nova chega enquanto o save anterior ainda está em voo, ela é
+     enfileirada em `pendingNext` e processada assim que a atual terminar, em
+     vez de disparar outra requisição concorrente. Sem isso, duas requisições
+     podiam completar fora de ordem — a mais antiga "vencendo" por último e
+     revertendo parte do que o usuário tinha acabado de digitar (tanto na
+     tela, via refetch(), quanto no próprio banco). */
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  const pendingNext = useRef<ContentStore | null>(null);
 
-  const persist = useCallback(async (next: ContentStore, immediate = false): Promise<void> => {
-    // We only update the local state immediately
-    isSaving.current = true;
-    hasLocalUnsaved.current = true;
-    setContent(next);
-    saveCache(next);
-    lastUpdated.current = 'local-edit';
-
-    const executeSave = async () => {
+  const drainSaveQueue = useCallback(async (): Promise<void> => {
+    while (pendingNext.current !== null) {
+      const next = pendingNext.current;
+      pendingNext.current = null;
       setSaving(true);
       setSaveError(null);
 
@@ -261,31 +265,45 @@ export function useContentConfig() {
         const heroRaw = localStorage.getItem('emais_image_config');
         const heroImages = heroRaw ? JSON.parse(heroRaw) : {};
         await putContent({ ...merged, heroImages });
-        hasLocalUnsaved.current = false;
         setSaveError(null);
         bc?.postMessage('update');
       } catch (err: any) {
         console.warn('[useContentConfig] API save failed:', err);
         setSaveError(err.message || 'Erro desconhecido ao salvar');
-        throw err;
-      } finally {
-        isSaving.current = false;
-        setSaving(false);
+        // Não interrompe o laço: se já houver uma edição mais nova
+        // enfileirada, ela ainda tenta salvar em seguida.
       }
-    };
+    }
+    isSaving.current = false;
+    hasLocalUnsaved.current = false;
+    setSaving(false);
+  }, []);
+
+  const persist = useCallback((next: ContentStore, immediate = false): Promise<void> => {
+    isSaving.current = true;
+    hasLocalUnsaved.current = true;
+    setContent(next);
+    saveCache(next);
+    lastUpdated.current = 'local-edit';
+    pendingNext.current = next;
 
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
 
+    const enqueue = () => {
+      const run = saveChain.current.then(drainSaveQueue);
+      saveChain.current = run.catch(() => {});
+      return run;
+    };
+
     if (immediate) {
-      return executeSave();
-    } else {
-      return new Promise((resolve, reject) => {
-        saveTimeout.current = setTimeout(() => {
-          executeSave().then(resolve).catch(reject);
-        }, 1000);
-      });
+      return enqueue();
     }
-  }, []);
+    return new Promise((resolve, reject) => {
+      saveTimeout.current = setTimeout(() => {
+        enqueue().then(resolve, reject);
+      }, 1000);
+    });
+  }, [drainSaveQueue]);
 
   /* ── Events ── */
   const updateEvent = useCallback((i: number, d: Partial<EventHighlight>) =>
