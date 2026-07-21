@@ -340,6 +340,34 @@ function parsePacotes(raw?: string): PacotesObj {
 }
 
 type DestinoLifestyle = { titulo?: string; descricao?: string; items?: string[]; imagens?: string[]; invertido?: boolean };
+type SectionBg = { type?: 'image' | 'video'; url?: string };
+
+/* ── Fundo customizado de uma seção (imagem ou vídeo, opcional) ── */
+function SectionBgEditor({ bg, onChange, tokenKey }: {
+  bg: SectionBg; onChange: (bg: SectionBg) => void; tokenKey: string;
+}) {
+  const type = bg.type || 'none';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, background: '#002042', borderRadius: 10, border: '1px solid #002b52' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <label style={lbl}>Fundo da seção</label>
+        <select value={type} onChange={e => { const t = e.target.value; onChange(t === 'none' ? {} : { type: t as 'image' | 'video', url: bg.url }); }}
+          style={{ ...IS, width: 'auto', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}>
+          <option value="none">Nenhum (padrão)</option>
+          <option value="image">🖼️ Imagem</option>
+          <option value="video">🎞️ Vídeo</option>
+        </select>
+      </div>
+      {type === 'image' && (
+        <LPImageInput label="Imagem de fundo" value={bg.url || ''} onChange={url => onChange({ type: 'image', url })} tokenKey={tokenKey} />
+      )}
+      {type === 'video' && (
+        <input value={bg.url || ''} onChange={e => onChange({ type: 'video', url: e.target.value })}
+          placeholder="https://www.youtube.com/watch?v=... ou .mp4" style={{ ...IS, fontSize: 12 }} />
+      )}
+    </div>
+  );
+}
 
 /* ── Editor de lista de "inclusos" (título + descrição) ── */
 function InclusosEditor({ items, onChange, addLabel }: {
@@ -392,6 +420,10 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
   // Visibilidade das seções opcionais da LP (visíveis por padrão)
   const vis: Record<string, boolean> = { experiencia: true, destino: true, ...parseJSONSafe<Record<string, boolean>>(pkg.lpSections, {}) };
   const setVis = (key: string, value: boolean) => onUpdate({ lpSections: JSON.stringify({ ...vis, [key]: value }) });
+
+  // Fundo customizado (imagem ou vídeo) por seção — nenhuma seção tem por padrão
+  const bgs: Record<string, SectionBg> = parseJSONSafe<Record<string, SectionBg>>(pkg.lpBackgrounds, {});
+  const setBg = (key: string, bg: SectionBg) => onUpdate({ lpBackgrounds: JSON.stringify({ ...bgs, [key]: bg }) });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -453,6 +485,7 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
       <LPSection badge="Seção 2 da LP" title="Cards de Benefícios" icon={LayoutGrid} color="#ec4899"
         subtitle='Os 3 cards logo abaixo do Hero (ex: "Experiência Completa", "Acesso Exclusivo", "Suporte 24/7").'>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <SectionBgEditor bg={bgs.cards || {}} onChange={bg => setBg('cards', bg)} tokenKey={tokenKey} />
           {cards.map((c: any, i: number) => (
             <div key={i} style={{ background: '#002042', padding: 12, borderRadius: 10, border: '1px solid #002b52', display: 'grid', gap: 8 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr auto', gap: 8 }}>
@@ -484,6 +517,7 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
       <LPSection badge="Seção 3 da LP" title="Programação do Evento" icon={CalendarDays} color="#f59e0b"
         subtitle="Abas de dias (Sexta / Sábado / Domingo) e as atividades de cada dia.">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <SectionBgEditor bg={bgs.programacao || {}} onChange={bg => setBg('programacao', bg)} tokenKey={tokenKey} />
           {prog.map((day: any, i: number) => (
             <div key={i} style={{ background: '#002042', padding: 14, borderRadius: 10, border: '1px solid #002b52' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', gap: 8, marginBottom: 10 }}>
@@ -521,6 +555,7 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
       <LPSection badge="Seção 4 da LP" title="Pacotes & Tipos (Hospedagens)" icon={BedDouble} color="#10b981"
         subtitle="Cards de venda da LP, com valores por quarto individual/duplo e a lista do que está incluso em cada opção.">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <SectionBgEditor bg={bgs.pacotes || {}} onChange={bg => setBg('pacotes', bg)} tokenKey={tokenKey} />
           {pacotes.opcoes_hospedagem.map((op, i) => (
             <div key={i} style={{ background: '#002042', padding: 16, borderRadius: 12, border: '1px solid #002b52', display: 'grid', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -593,6 +628,7 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
         toggle={{ on: vis.experiencia, onChange: v => setVis('experiencia', v) }}
         subtitle='Bloco "Uma Experiência Inesquecível": subtítulo + lista de experiências exclusivas à esquerda, fotos escolhidas do Banco de Imagens à direita.'>
         <div style={{ display: 'grid', gap: 12 }}>
+          <SectionBgEditor bg={bgs.experiencia || {}} onChange={bg => setBg('experiencia', bg)} tokenKey={tokenKey} />
           <div style={fieldCol}>
             <label style={lbl}>Subtítulo da seção</label>
             <textarea rows={3} value={pkg.experienciaSection || ''} onChange={e => onUpdate({ experienciaSection: e.target.value })}
@@ -620,6 +656,7 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
         toggle={{ on: vis.destino, onChange: v => setVis('destino', v) }}
         subtitle="Apresenta a cidade/destino do evento: título, breve descrição, atrativos locais e fotos escolhidas do Banco de Imagens. Fica oculta automaticamente se título e descrição estiverem vazios.">
         <div style={{ display: 'grid', gap: 12 }}>
+          <SectionBgEditor bg={bgs.destino || {}} onChange={bg => setBg('destino', bg)} tokenKey={tokenKey} />
           <div style={fieldCol}>
             <label style={lbl}>Título</label>
             <input placeholder="Ex: Milão te espera" value={destino.titulo || ''} onChange={e => setDestino({ ...destino, titulo: e.target.value })} style={IS} />
@@ -644,6 +681,12 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
             Texto à esquerda / fotos à direita (padrão é fotos à esquerda / texto à direita)
           </label>
         </div>
+      </LPSection>
+
+      {/* ══ SEÇÃO 8 — PARCERIA (conteúdo fixo, só o fundo é configurável) ══ */}
+      <LPSection badge="Seção 8 da LP" title="Parceria" icon={Images} color="#f59e0b"
+        subtitle='Bloco fixo "Realizado por" no final da LP — só o fundo é configurável aqui.'>
+        <SectionBgEditor bg={bgs.parceria || {}} onChange={bg => setBg('parceria', bg)} tokenKey={tokenKey} />
       </LPSection>
     </div>
   );

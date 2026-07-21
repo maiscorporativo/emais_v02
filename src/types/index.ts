@@ -73,6 +73,7 @@ export interface TrendingPackage {
   experienciaImages?: string; // Imagens escolhidas do Banco de Imagens para a seção Experiências (URLs separadas por ";")
   destinoLifestyleData?: string; // JSON { titulo, descricao, items: string[], imagens: string[], invertido } — seção Destino & Lifestyle
   lpSections?: string; // JSON de visibilidade de seções opcionais da LP: { experiencia, destino } — true por padrão
+  lpBackgrounds?: string; // JSON { cards, programacao, pacotes, experiencia, destino, parceria } → { type: 'image'|'video', url } — fundo customizado por seção
   partnershipSection?: string; // JSON string ou boolean para parceria
   /* ── Soft-delete ── */
   deletedAt?: string;

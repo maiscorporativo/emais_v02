@@ -59,6 +59,34 @@ const injectScript = (id: string, content: string, target: 'head' | 'body' = 'he
   } catch (err) { console.error('Script injection failed:', err); }
 };
 
+/* --- Fundo customizado de seção (imagem ou vídeo, com véu escuro por cima) --- */
+function SectionBackground({ bg }: { bg?: { type?: 'image' | 'video'; url?: string } }) {
+  if (!bg?.url) return null;
+  if (bg.type === 'video') {
+    const isYoutube = bg.url.includes('youtube.com') || bg.url.includes('youtu.be');
+    return (
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
+        {isYoutube ? (
+          <iframe src={getYoutubeEmbedUrl(bg.url)} title="Fundo"
+            style={{ width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.77vh', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+            frameBorder="0" allow="autoplay; encrypted-media" />
+        ) : (
+          <video autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }}>
+            <source src={bg.url} type="video/mp4" />
+          </video>
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
+      <img src={fixImgPath(bg.url)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+    </div>
+  );
+}
+
 /* --- Galeria de Fotos: imagem grande + tira de miniaturas, avança sozinha --- */
 function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMobile: boolean; themeColor: string }) {
   const [active, setActive] = useState(0);
@@ -489,6 +517,9 @@ export default function PackageLP() {
   // Visibilidade das seções opcionais da LP (visíveis por padrão)
   const vis: Record<string, boolean> = { experiencia: true, destino: true, ...parseJSON(pkg.lpSections, {}) };
 
+  // Fundo customizado (imagem ou vídeo) por seção, configurável no admin
+  const bgs: Record<string, { type?: 'image' | 'video'; url?: string }> = parseJSON(pkg.lpBackgrounds, {});
+
   const sport = pkg.sportType || 'automobilismo';
 
   const sportEventText = sport === 'futebol' ? 'da partida' : sport === 'tenis' ? 'do torneio' : sport === 'basquete' ? 'do jogo' : sport === 'lutas' ? 'da luta' : 'da corrida';
@@ -581,8 +612,9 @@ export default function PackageLP() {
       </section>
 
       {/* --- CARDS DE BENEFÍCIOS --- */}
-      <section style={{ padding: '0 20px', position: 'relative', zIndex: 20, marginTop: '-80px', marginBottom: '80px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+      <section style={{ padding: '0 20px', position: 'relative', zIndex: 20, marginTop: '-80px', marginBottom: '80px', overflow: bgs.cards?.url ? 'hidden' : undefined, borderRadius: bgs.cards?.url ? 24 : undefined }}>
+        <SectionBackground bg={bgs.cards} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, position: 'relative', zIndex: 1 }}>
           {cards.map((c: any, i: number) => (
             <div key={i} style={{
               background: '#001a33', border: '1px solid #003866', borderRadius: 16, padding: '32px',
@@ -606,8 +638,8 @@ export default function PackageLP() {
       <section id="programacao" style={{
         position: 'relative', padding: isMobile ? '60px 20px' : '100px 20px', background: '#001529', overflow: 'hidden'
       }}>
-        {/* Local Background Video */}
-        {sport === 'automobilismo' ? (
+        {/* Fundo customizado (se configurado no admin) substitui o vídeo/gradiente padrão */}
+        {bgs.programacao?.url ? <SectionBackground bg={bgs.programacao} /> : sport === 'automobilismo' ? (
           <video
             autoPlay muted loop playsInline
             style={{
@@ -669,8 +701,9 @@ export default function PackageLP() {
       </section>
 
       {/* --- PACOTES --- */}
-      <section id="pacotes" style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#0a0a0b' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <section id="pacotes" style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#0a0a0b', position: 'relative', overflow: 'hidden' }}>
+        <SectionBackground bg={bgs.pacotes} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 60 }}>
             <h2 style={{ fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: 900, margin: '0 0 16px' }}>Pacotes de <span style={{ color: '#f7ad40' }}>Viagem Completos</span></h2>
             <p style={{ fontSize: 16, color: '#aaa', maxWidth: 600, margin: '0 auto' }}>Voe com tudo incluído. Hospedagem, transporte e ingressos em um único pacote.</p>
@@ -816,8 +849,9 @@ export default function PackageLP() {
 
       {/* --- EXPERIÊNCIAS --- */}
       {vis.experiencia && (
-      <section id="experiencia" style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#001529' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center' }}>
+      <section id="experiencia" style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#001529', position: 'relative', overflow: 'hidden' }}>
+        <SectionBackground bg={bgs.experiencia} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center', position: 'relative', zIndex: 1 }}>
           <div>
             <h2 style={{ fontSize: isMobile ? '2.2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, margin: '0 0 24px', lineHeight: 1.1 }}>Uma Experiência <span style={{ color: '#f7ad40' }}>Inesquecível</span></h2>
             <div style={{ fontSize: isMobile ? 14 : 16, color: '#aaa', lineHeight: 1.8 }} dangerouslySetInnerHTML={{ __html: pkg.experienciaSection || 'Nossos pacotes garantem que você vivencie cada momento memorável com conforto, segurança e acesso a áreas exclusivas que a maioria dos visitantes nunca experimenta.' }} />
@@ -893,8 +927,9 @@ export default function PackageLP() {
           </div>
         );
         return (
-          <section style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#002042', borderTop: '1px solid #003866', borderBottom: '1px solid #003866' }}>
-            <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center' }}>
+          <section style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#002042', borderTop: '1px solid #003866', borderBottom: '1px solid #003866', position: 'relative', overflow: 'hidden' }}>
+            <SectionBackground bg={bgs.destino} />
+            <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center', position: 'relative', zIndex: 1 }}>
               {destino.invertido ? <>{texto}{fotos}</> : <>{fotos}{texto}</>}
             </div>
           </section>
@@ -913,8 +948,9 @@ export default function PackageLP() {
       )}
 
       {/* --- PARCERIA --- */}
-      <section style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#002042', borderTop: '1px solid #003866', borderBottom: '1px solid #003866', textAlign: 'center' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <section style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#002042', borderTop: '1px solid #003866', borderBottom: '1px solid #003866', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <SectionBackground bg={bgs.parceria} />
+        <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <p style={{ fontSize: 12, color: '#f7ad40', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Realizado por:</p>
           <h2 style={{ fontSize: isMobile ? '2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, color: '#fff', margin: '0 0 16px' }}>Uma Parceria de Referência</h2>
           <p style={{ fontSize: isMobile ? 15 : 18, color: '#aaa', maxWidth: 700, margin: '0 auto 40px', lineHeight: 1.6 }}>
