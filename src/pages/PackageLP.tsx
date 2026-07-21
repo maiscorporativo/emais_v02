@@ -59,6 +59,39 @@ const injectScript = (id: string, content: string, target: 'head' | 'body' = 'he
   } catch (err) { console.error('Script injection failed:', err); }
 };
 
+/* --- Galeria de Fotos: imagem grande + tira de miniaturas, avança sozinha --- */
+function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMobile: boolean; themeColor: string }) {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const interval = setInterval(() => setActive(prev => (prev + 1) % images.length), 4500);
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  if (!images.length) return null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ width: '100%', height: isMobile ? 300 : 500, borderRadius: 24, overflow: 'hidden', position: 'relative', border: '1px solid #003866' }}>
+        {images.map((img, i) => (
+          <img key={i} src={fixImgPath(img)}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: i === active ? 1 : 0, transition: 'opacity 0.6s ease-in-out' }}
+            alt={`Foto ${i + 1}`} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 10, scrollbarWidth: 'none' }}>
+        {images.map((img, i) => (
+          <div key={i} onClick={() => setActive(i)}
+            style={{ flexShrink: 0, width: isMobile ? 100 : 160, height: isMobile ? 60 : 100, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: active === i ? `2px solid ${themeColor}` : '2px solid transparent', transition: 'all 0.3s', opacity: active === i ? 1 : 0.5, transform: active === i ? 'scale(1.02)' : 'scale(1)' }}>
+            <img src={fixImgPath(img)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={`Miniatura ${i + 1}`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* --- Football Kick Animation Component --- */
 /* --- Sport Ball Scroll Animation Component --- */
 function SportBall({ sport }: { sport: string }) {
@@ -867,6 +900,17 @@ export default function PackageLP() {
           </section>
         );
       })()}
+
+      {/* --- GALERIA DE FOTOS (todo o Banco de Imagens do pacote) --- */}
+      {pkg.galleryImages && pkg.galleryImages.trim() !== '' && (
+        <section id="galeria" style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#001529' }}>
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            <h2 style={{ fontSize: isMobile ? '2.2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, margin: '0 0 8px', lineHeight: 1.1 }}>Galeria de <span style={{ color: '#f7ad40' }}>Fotos</span></h2>
+            <p style={{ fontSize: isMobile ? 14 : 16, color: '#aaa', margin: '0 0 40px' }}>Um gostinho do que espera por você.</p>
+            <PhotoGallery images={pkg.galleryImages.split(';').filter(Boolean).map(s => s.trim())} isMobile={isMobile} themeColor="#f7ad40" />
+          </div>
+        </section>
+      )}
 
       {/* --- PARCERIA --- */}
       <section style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#002042', borderTop: '1px solid #003866', borderBottom: '1px solid #003866', textAlign: 'center' }}>

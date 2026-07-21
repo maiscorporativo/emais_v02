@@ -19,6 +19,7 @@ import {
   BedDouble, Star, Images, Loader2, DollarSign, Medal, Check, MapPin,
 } from 'lucide-react';
 import type { TrendingPackage } from '../types';
+import { useContentConfig } from '../hooks/useContentConfig';
 
 /* ── Estilos base (mesma linguagem visual dos painéis) ── */
 const IS: React.CSSProperties = {
@@ -147,9 +148,13 @@ function LPImageInput({ label, value, onChange, tokenKey }: {
   );
 }
 
-/* ── Banco de Imagens (upload múltiplo + grade de miniaturas) ── */
-function ImageBankManager({ value, onChange, tokenKey }: {
+/* ── Banco de Imagens (upload múltiplo + grade de miniaturas) ──
+ * otherPackages: bancos de outros pacotes do portal (título + imagens), para
+ * o seletor "Importar de outro pacote..." — evita reenviar a mesma foto que
+ * já foi enviada em outro pacote. */
+function ImageBankManager({ value, onChange, tokenKey, otherPackages }: {
   value: string; onChange: (val: string) => void; tokenKey: string;
+  otherPackages?: { title: string; images: string[] }[];
 }) {
   const images = splitList(value);
   const [uploading, setUploading] = useState(false);
@@ -173,8 +178,31 @@ function ImageBankManager({ value, onChange, tokenKey }: {
     onChange(joinList(next));
   };
 
+  const importable = (otherPackages || []).filter(p => p.images.length > 0);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {importable.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <select
+            onChange={e => {
+              const idx = e.target.value;
+              e.target.value = '';
+              if (idx === '') return;
+              const src = importable[Number(idx)];
+              if (!src) return;
+              const newItems = src.images.filter(url => !images.includes(url));
+              if (newItems.length > 0) onChange(joinList([...images, ...newItems]));
+            }}
+            style={{ background: '#002042', color: '#f7ad40', border: '1px solid #003866', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', outline: 'none' }}
+          >
+            <option value="">📥 Importar de outro pacote...</option>
+            {importable.map((p, idx) => (
+              <option key={idx} value={idx}>{p.title} ({p.images.length} fotos)</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 10 }}>
         {images.map((img, idx) => (
           <div key={`${idx}-${img}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: '1px solid #003866' }}>
@@ -325,6 +353,14 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
   tokenKey: string;
 }) {
   const bank = splitList(pkg.galleryImages);
+  // Bancos de imagens dos outros pacotes do portal, para o seletor "Importar
+  // de outro pacote..." do Banco de Imagens — evita reenviar a mesma foto.
+  // Importar do próprio pacote é inofensivo (as fotos já presentes são
+  // ignoradas), então não há necessidade de excluí-lo da lista.
+  const { packages: allPackages } = useContentConfig();
+  const otherPackages = allPackages
+    .map(p => ({ title: p.title || 'Sem título', images: splitList(p.galleryImages) }))
+    .filter(p => p.images.length > 0);
   const pacotes = parsePacotes(pkg.pacotesOptionsData);
   const setPacotes = (obj: PacotesObj) => onUpdate({ pacotesOptionsData: JSON.stringify(obj) });
   const prog = parseJSONSafe<any[]>(pkg.programacaoData, []);
@@ -551,7 +587,7 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey }: {
           </div>
           <div style={fieldCol}>
             <label style={lbl}><Images size={10} /> Banco de Imagens</label>
-            <ImageBankManager value={pkg.galleryImages || ''} onChange={v => onUpdate({ galleryImages: v })} tokenKey={tokenKey} />
+            <ImageBankManager value={pkg.galleryImages || ''} onChange={v => onUpdate({ galleryImages: v })} tokenKey={tokenKey} otherPackages={otherPackages} />
           </div>
           <div style={fieldCol}>
             <label style={lbl}>Fotos desta seção (clique para selecionar do banco)</label>
