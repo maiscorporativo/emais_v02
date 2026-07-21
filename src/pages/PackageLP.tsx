@@ -847,7 +847,7 @@ export default function PackageLP() {
               {[
                 'Atendimento humanizado 24h durante o evento',
                 'Pagamento facilitado em até 10x',
-                'Empresa consolidada há mais de 15 anos'
+                'Empresa consolidada há mais de 20 anos'
               ].map((text, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div style={{ width: 24, height: 24, background: '#f7ad40', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
