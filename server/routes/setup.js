@@ -75,6 +75,28 @@ router.get('/status', requireSetupToken, async (req, res) => {
   res.type('text/plain').send(lines.join('\n'));
 });
 
+/** Dump do payload bruto de um pacote da tabela compartilhada — para
+ *  diagnosticar se um campo específico (sportType, videoUrl, heroType...)
+ *  realmente foi gravado no banco, sem depender do que a UI mostra. */
+router.get('/pkg-raw', requireSetupToken, async (req, res) => {
+  if (!sharedDbEnabled()) return res.type('text/plain').send('Banco compartilhado desativado.');
+  try {
+    const id = req.query.id;
+    const [rows] = id
+      ? await sharedPool.query('SELECT * FROM shared_packages WHERE id = ?', [id])
+      : await sharedPool.query('SELECT * FROM shared_packages ORDER BY id');
+    const lines = [];
+    for (const r of rows) {
+      lines.push(`#${r.id} [origem: ${r.origem} / esporte: ${r.esporte}] sport_type_torcida: ${r.sport_type_torcida ?? '(null)'}`);
+      lines.push(r.payload);
+      lines.push('');
+    }
+    res.type('text/plain').send(lines.join('\n') || 'Nenhum pacote encontrado.');
+  } catch (err) {
+    res.status(500).type('text/plain').send(`Erro: ${err.message}`);
+  }
+});
+
 /** Diagnostica um arquivo dentro de UPLOADS_DIR sem passar pela CDN/otimizador
  *  de imagens — lê o arquivo direto no disco pelo próprio app Node. */
 router.get('/check-upload', requireSetupToken, (req, res) => {

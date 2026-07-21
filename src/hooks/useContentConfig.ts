@@ -262,9 +262,13 @@ export function useContentConfig() {
 
       window.dispatchEvent(new Event(UPDATE_EVENT));
       try {
-        const heroRaw = localStorage.getItem('emais_image_config');
-        const heroImages = heroRaw ? JSON.parse(heroRaw) : {};
-        await putContent({ ...merged, heroImages });
+        // heroImages NÃO é reenviado daqui: era lido de um cache no
+        // localStorage do navegador que podia estar velho (URLs de uploads
+        // já apagados/migrados), e cada save de pacote/evento/categoria
+        // reinjetava esse retrato antigo no banco, apagando imagens novas
+        // da galeria Hero. useImageConfig.ts já salva heroImages sozinho, e
+        // o servidor preserva o campo existente quando ele vem ausente.
+        await putContent(merged);
         setSaveError(null);
         bc?.postMessage('update');
       } catch (err: any) {
