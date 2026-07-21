@@ -75,9 +75,53 @@ router.get('/status', requireSetupToken, async (req, res) => {
   res.type('text/plain').send(lines.join('\n'));
 });
 
+/** Diagnostica sessões de admin: compara o relógio do app com o do banco e
+ *  lista as sessões mais recentes (token truncado) para investigar 401s
+ *  inesperados de "sessão inválida ou expirada" logo após um login. */
+router.get('/sessions', requireSetupToken, async (req, res) => {
+  const lines = [];
+  lines.push(`Relógio do processo Node (Date.now()): ${new Date().toISOString()}`);
+  try {
+    const [[{ dbNow }]] = await pool.query('SELECT NOW() AS dbNow');
+    lines.push(`Relógio do banco (NOW()): ${new Date(dbNow).toISOString()}`);
+  } catch (err) {
+    lines.push(`❌ ERRO ao consultar o relógio do banco: ${err.message}`);
+  }
+  lines.push('');
+  try {
+    const [rows] = await pool.query(
+      'SELECT token, username, role, expires_at, expires_at > NOW() AS valida FROM user_sessions ORDER BY expires_at DESC LIMIT 20'
+    );
+    lines.push(`Total de sessões (últimas 20 por expiração): ${rows.length}`);
+    for (const r of rows) {
+      lines.push(`  [${r.valida ? '✅ válida' : '❌ expirada'}] user: ${r.username} (${r.role}) — token: ${r.token.slice(0, 8)}... — expira: ${new Date(r.expires_at).toISOString()}`);
+    }
+  } catch (err) {
+    lines.push(`❌ ERRO ao consultar user_sessions: ${err.message}`);
+  }
+  res.type('text/plain').send(lines.join('\n'));
+});
+
 /** Dump do payload bruto de um pacote da tabela compartilhada — para
  *  diagnosticar se um campo específico (sportType, videoUrl, heroType...)
  *  realmente foi gravado no banco, sem depender do que a UI mostra. */
+
+/** Limpa heroImages (volta pro objeto vazio {} — a UI cai nas imagens padrão
+ *  do código). Usado quando o campo acumula referências a arquivos que não
+ *  existem mais (ex: pasta de uploads persistente reorganizada) — melhor
+ *  mostrar o padrão do que caixas quebradas até o admin re-enviar as
+ *  imagens de verdade. */
+router.get('/clear-hero-images', requireSetupToken, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE site_content SET hero_images = '{}' WHERE id = 1`
+    );
+    res.type('text/plain').send('✅ hero_images resetado para {} — o site volta a usar as imagens padrão do código até novas imagens serem enviadas pelo admin.');
+  } catch (err) {
+    res.status(500).type('text/plain').send(`Erro: ${err.message}`);
+  }
+});
+
 router.get('/pkg-raw', requireSetupToken, async (req, res) => {
   if (!sharedDbEnabled()) return res.type('text/plain').send('Banco compartilhado desativado.');
   try {
