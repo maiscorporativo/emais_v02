@@ -6,8 +6,8 @@ type ImageOverrides = Partial<Record<ImageKey, string>>;
 const UPDATE_EVENT = 'torcida_image_update';
 const CONTENT_UPDATE_EVENT = 'torcida_content_update';
 const getSessionToken = () =>
-  localStorage.getItem('torcida_admin_token') ||
-  localStorage.getItem('torcida_master_token') ||
+  localStorage.getItem('emais_admin_token') ||
+  localStorage.getItem('emais_master_token') ||
   '';
 
 
@@ -23,7 +23,7 @@ async function pushHeroToApi(overrides: ImageOverrides) {
     // Read current content from cache and attach updated hero images
     const contentRaw = localStorage.getItem('torcida_content_cache');
     const content = contentRaw ? JSON.parse(contentRaw) : {};
-    await fetch('/api/content', {
+    const res = await fetch('/api/content', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -31,7 +31,12 @@ async function pushHeroToApi(overrides: ImageOverrides) {
       },
       body: JSON.stringify({ ...content, heroImages: overrides }),
     });
-  } catch { /* silent — localStorage already updated */ }
+    if (!res.ok) {
+      console.error('[useImageConfig] Falha ao salvar imagens da galeria no servidor:', res.status, await res.text().catch(() => ''));
+    }
+  } catch (err) {
+    console.error('[useImageConfig] Erro ao salvar imagens da galeria:', err);
+  }
 }
 
 export function useImageConfig() {
