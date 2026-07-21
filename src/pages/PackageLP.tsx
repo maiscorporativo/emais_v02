@@ -887,9 +887,7 @@ export default function PackageLP() {
       </section>
 
       <footer style={{ padding: isMobile ? '40px 20px' : '80px 40px', textAlign: 'center', borderTop: '1px solid #002042' }}>
-        <div className="text-2xl font-black uppercase tracking-tighter text-white" style={{ marginBottom: 16, opacity: 0.5, fontSize: isMobile ? 18 : 24 }}>
-          TORCIDA <span className="text-gold">PLACAR</span>
-        </div>
+        <img src="/emais-logo.svg" alt="E-Mais" style={{ height: isMobile ? 26 : 34, margin: '0 auto 16px', opacity: 0.5 }} />
         <p style={{ fontSize: isMobile ? 11 : 13, color: '#444', maxWidth: 800, margin: '0 auto', lineHeight: 1.6 }}>
           © Todos os direitos reservados Mais Corporativo - 2026 - {sport === 'automobilismo' ? 'Não somos afiliados à IndyCar ou Penske Corporation. Somos apenas uma empresa de turismo que oferece pacotes para a corrida.' : 'Somos uma agência de turismo corporativo especializada em pacotes para grandes eventos esportivos.'}
         </p>
