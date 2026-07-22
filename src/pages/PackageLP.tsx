@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Calendar, Users, MapPin,
-  MessageCircle, AlertTriangle, Zap, Trophy, Headset, ChevronRight
+  MessageCircle, AlertTriangle, Zap, Trophy, Headset, ChevronRight, ChevronLeft, X
 } from 'lucide-react';
 import { useContentConfig } from '../hooks/useContentConfig';
 import type { TrendingPackage } from '../types';
@@ -87,26 +87,50 @@ function SectionBackground({ bg }: { bg?: { type?: 'image' | 'video'; url?: stri
   );
 }
 
-/* --- Galeria de Fotos: imagem grande + tira de miniaturas, avança sozinha --- */
+/* --- Galeria de Fotos: imagem grande + tira de miniaturas, avança sozinha,
+   com setas para navegar na hora e lightbox ao clicar para ver ampliada --- */
 function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMobile: boolean; themeColor: string }) {
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
-    if (images.length <= 1) return;
+    if (images.length <= 1 || lightboxOpen) return;
     const interval = setInterval(() => setActive(prev => (prev + 1) % images.length), 4500);
     return () => clearInterval(interval);
-  }, [images.length]);
+  }, [images.length, lightboxOpen]);
+
+  // Navegação do lightbox por teclado (ESC fecha, setas trocam de foto)
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key === 'ArrowLeft') setActive(prev => (prev - 1 + images.length) % images.length);
+      if (e.key === 'ArrowRight') setActive(prev => (prev + 1) % images.length);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxOpen, images.length]);
 
   if (!images.length) return null;
+
+  const goPrev = () => setActive(prev => (prev - 1 + images.length) % images.length);
+  const goNext = () => setActive(prev => (prev + 1) % images.length);
+  const arrowBtn: React.CSSProperties = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ width: '100%', height: isMobile ? 300 : 500, borderRadius: 24, overflow: 'hidden', position: 'relative', border: '1px solid #003866' }}>
         {images.map((img, i) => (
-          <img key={i} src={fixImgPath(img)}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: i === active ? 1 : 0, transition: 'opacity 0.6s ease-in-out' }}
+          <img key={i} src={fixImgPath(img)} onClick={() => setLightboxOpen(true)} title="Clique para ampliar"
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: i === active ? 1 : 0, transition: 'opacity 0.6s ease-in-out', cursor: 'zoom-in' }}
             alt={`Foto ${i + 1}`} />
         ))}
+        {images.length > 1 && (
+          <>
+            <button onClick={goPrev} title="Foto anterior" style={{ ...arrowBtn, left: 12, width: 40, height: 40 }}><ChevronLeft size={20} /></button>
+            <button onClick={goNext} title="Próxima foto" style={{ ...arrowBtn, right: 12, width: 40, height: 40 }}><ChevronRight size={20} /></button>
+          </>
+        )}
       </div>
       <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 10, scrollbarWidth: 'none' }}>
         {images.map((img, i) => (
@@ -116,6 +140,33 @@ function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMo
           </div>
         ))}
       </div>
+
+      {lightboxOpen && (
+        <div onClick={() => setLightboxOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.94)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.25s ease' }}>
+          <button onClick={() => setLightboxOpen(false)} title="Fechar (ESC)"
+            style={{ position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+            <X size={22} />
+          </button>
+          {images.length > 1 && (
+            <button onClick={e => { e.stopPropagation(); goPrev(); }} title="Anterior (←)" style={{ ...arrowBtn, left: 16, width: 52, height: 52, background: 'rgba(255,255,255,0.08)' }}>
+              <ChevronLeft size={28} />
+            </button>
+          )}
+          <img src={fixImgPath(images[active])} alt={`Foto ${active + 1}`} onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '92vw', maxHeight: '86vh', objectFit: 'contain', borderRadius: 12, boxShadow: '0 30px 80px rgba(0,0,0,0.8)' }} />
+          {images.length > 1 && (
+            <button onClick={e => { e.stopPropagation(); goNext(); }} title="Próxima (→)" style={{ ...arrowBtn, right: 16, width: 52, height: 52, background: 'rgba(255,255,255,0.08)' }}>
+              <ChevronRight size={28} />
+            </button>
+          )}
+          {images.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', color: '#ccc', fontSize: 14, fontWeight: 700, background: 'rgba(0,0,0,0.6)', padding: '6px 18px', borderRadius: 100, border: '1px solid rgba(255,255,255,0.1)' }}>
+              {active + 1} / {images.length}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
