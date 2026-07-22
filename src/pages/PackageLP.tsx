@@ -87,6 +87,35 @@ function SectionBackground({ bg }: { bg?: { type?: 'image' | 'video'; url?: stri
   );
 }
 
+/* --- Quantas fotos cabem "alinhadas" ao lado de um bloco de texto ---
+ * Mede a altura REAL do texto (depois de renderizado, e de novo sempre que
+ * ela mudar — texto maior/menor, resize da janela) e calcula quantas linhas
+ * de fotos (2 por linha no desktop, 1 no mobile) cabem nesse espaço. O
+ * restante das fotos desce pra uma grade em largura total logo abaixo,
+ * em vez de um número fixo de fotos que não se adapta ao texto. */
+function useAdaptiveTopCount(imagesLength: number, isMobile: boolean, rowHeightPx = 220) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const [topCount, setTopCount] = useState(imagesLength);
+
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el || imagesLength === 0) { setTopCount(imagesLength); return; }
+    const perRow = isMobile ? 1 : 2;
+    const gap = 16;
+    const compute = () => {
+      const h = el.offsetHeight;
+      const rows = Math.max(1, Math.round((h + gap) / (rowHeightPx + gap)));
+      setTopCount(Math.min(imagesLength, rows * perRow));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [imagesLength, isMobile, rowHeightPx]);
+
+  return { textRef, topCount };
+}
+
 /* --- Galeria de Fotos: imagem grande + tira de miniaturas, avança sozinha,
    com setas para navegar na hora e lightbox ao clicar para ver ampliada --- */
 function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMobile: boolean; themeColor: string }) {
@@ -596,11 +625,21 @@ export default function PackageLP() {
   const experienciaBank = (pkg.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
   const experienciaPicked = (pkg.experienciaImages || '').split(';').map(s => s.trim()).filter(Boolean).filter(u => experienciaBank.includes(u));
   const experienciaImgs = experienciaPicked.length > 0 ? experienciaPicked : experienciaBank.slice(0, 2);
-  // Com mais de 6 fotos, só as 4 primeiras ficam ao lado do texto (alinhadas
-  // com sua altura); o restante desce para uma grade em largura total abaixo
-  // do bloco de texto, em vez de continuar empilhando na coluna estreita.
-  const experienciaTopImgs = experienciaImgs.length > 6 ? experienciaImgs.slice(0, 4) : experienciaImgs;
-  const experienciaOverflowImgs = experienciaImgs.length > 6 ? experienciaImgs.slice(4) : [];
+  // A quantidade de fotos alinhadas ao lado do texto se ajusta sozinha à
+  // altura real do texto (mais texto = mais fotos cabem); o restante desce
+  // para uma grade em largura total abaixo do bloco, em vez de continuar
+  // empilhando na coluna estreita.
+  const { textRef: experienciaTextRef, topCount: experienciaTopCount } = useAdaptiveTopCount(experienciaImgs.length, isMobile);
+  const experienciaTopImgs = experienciaImgs.slice(0, experienciaTopCount);
+  const experienciaOverflowImgs = experienciaImgs.slice(experienciaTopCount);
+
+  // Destino & Lifestyle — mesma lógica de ajuste automático das fotos
+  const destino = parseJSON(pkg.destinoLifestyleData, null);
+  const destinoImgs: string[] = destino ? (destino.imagens || []).filter((u: string) => experienciaBank.includes(u)) : [];
+  const destinoItems: string[] = destino ? (destino.items || []).filter(Boolean) : [];
+  const { textRef: destinoTextRef, topCount: destinoTopCount } = useAdaptiveTopCount(destinoImgs.length, isMobile);
+  const destinoTopImgs = destinoImgs.slice(0, destinoTopCount);
+  const destinoOverflowImgs = destinoImgs.slice(destinoTopCount);
 
   const sport = pkg.sportType || 'automobilismo';
 
@@ -934,8 +973,8 @@ export default function PackageLP() {
       <section id="experiencia" style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#001529', position: 'relative', overflow: 'hidden' }}>
         <SectionBackground bg={bgs.experiencia} />
         <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center' }}>
-            <div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'start' }}>
+            <div ref={experienciaTextRef}>
               <h2 style={{ fontSize: isMobile ? '2.2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, margin: '0 0 24px', lineHeight: 1.1 }}>Uma Experiência <span style={{ color: '#f7ad40' }}>Inesquecível</span></h2>
               <div style={{ fontSize: isMobile ? 14 : 16, color: '#aaa', lineHeight: 1.8 }} dangerouslySetInnerHTML={{ __html: pkg.experienciaSection || 'Nossos pacotes garantem que você vivencie cada momento memorável com conforto, segurança e acesso a áreas exclusivas que a maioria dos visitantes nunca experimenta.' }} />
               {(pkg.experienciaItems || '').split(';').map(s => s.trim()).filter(Boolean).length > 0 && (
@@ -971,35 +1010,25 @@ export default function PackageLP() {
       )}
 
       {/* --- DESTINO & LIFESTYLE --- */}
-      {(() => {
-        if (!vis.destino) return null;
-        const destino = parseJSON(pkg.destinoLifestyleData, null);
-        if (!destino || (!destino.titulo && !destino.descricao)) return null;
-        const bank = (pkg.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
-        const imgs: string[] = (destino.imagens || []).filter((u: string) => bank.includes(u));
-        const items: string[] = (destino.items || []).filter(Boolean);
-        // Com mais de 6 fotos, só as 4 primeiras ficam alinhadas com o texto;
-        // o restante desce para uma grade em largura total abaixo do bloco.
-        const topImgs = imgs.length > 6 ? imgs.slice(0, 4) : imgs;
-        const overflowImgs = imgs.length > 6 ? imgs.slice(4) : [];
+      {vis.destino && destino && (destino.titulo || destino.descricao) && (() => {
         const fotos = (
-          <div style={{ display: 'grid', gridTemplateColumns: topImgs.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
-            {topImgs.length > 0 ? topImgs.map((img, i) => (
-              <img key={i} src={fixImgPath(img)} alt={destino.titulo || 'Destino'} style={{ width: '100%', height: topImgs.length > 1 ? 220 : 380, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: destinoTopImgs.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
+            {destinoTopImgs.length > 0 ? destinoTopImgs.map((img, i) => (
+              <img key={i} src={fixImgPath(img)} alt={destino.titulo || 'Destino'} style={{ width: '100%', height: destinoTopImgs.length > 1 ? 220 : 380, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
             )) : (
               <div style={{ width: '100%', height: 380, background: '#002042', borderRadius: 24, border: '1px solid #003866' }} />
             )}
           </div>
         );
         const texto = (
-          <div>
+          <div ref={destinoTextRef}>
             <h2 style={{ fontSize: isMobile ? '2.2rem' : 'clamp(2.5rem, 4vw, 3.5rem)', fontWeight: 900, margin: '0 0 24px', lineHeight: 1.1 }}>
               <span style={{ color: '#f7ad40' }}>{destino.titulo}</span>
             </h2>
-            {destino.descricao && <p style={{ fontSize: isMobile ? 14 : 16, color: '#aaa', lineHeight: 1.8, marginBottom: items.length > 0 ? 28 : 0 }}>{destino.descricao}</p>}
-            {items.length > 0 && (
+            {destino.descricao && <p style={{ fontSize: isMobile ? 14 : 16, color: '#aaa', lineHeight: 1.8, marginBottom: destinoItems.length > 0 ? 28 : 0 }}>{destino.descricao}</p>}
+            {destinoItems.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {items.map((item, i) => (
+                {destinoItems.map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 22, height: 22, background: '#f7ad40', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <MapPin size={12} color="#002042" />
@@ -1015,12 +1044,12 @@ export default function PackageLP() {
           <section style={{ padding: isMobile ? '60px 20px' : '100px 20px', background: '#002042', borderTop: '1px solid #003866', borderBottom: '1px solid #003866', position: 'relative', overflow: 'hidden' }}>
             <SectionBackground bg={bgs.destino} />
             <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 60, alignItems: 'start' }}>
                 {destino.invertido ? <>{texto}{fotos}</> : <>{fotos}{texto}</>}
               </div>
-              {overflowImgs.length > 0 && (
+              {destinoOverflowImgs.length > 0 && (
                 <div style={{ marginTop: isMobile ? 20 : 24, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 16 }}>
-                  {overflowImgs.map((img, i) => (
+                  {destinoOverflowImgs.map((img, i) => (
                     <img key={i} src={fixImgPath(img)} alt={destino.titulo || 'Destino'} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 24, border: '1px solid #003866' }} />
                   ))}
                 </div>
