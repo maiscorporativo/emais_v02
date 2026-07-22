@@ -163,6 +163,35 @@ function LPImageInput({ label, value, onChange, tokenKey }: {
   );
 }
 
+interface CornerAdjust { x?: number; y?: number; scale?: number }
+
+/* ── Ajuste manual de posição/tamanho das imagens do canto (jogador/bola) ── */
+function CornerAdjustControl({ label, value, onChange }: {
+  label: string; value: CornerAdjust; onChange: (v: CornerAdjust) => void;
+}) {
+  const numIS: React.CSSProperties = { ...IS, fontSize: 12, padding: '7px 10px' };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#002042', padding: 10, borderRadius: 10, border: '1px solid #002b52' }}>
+      <span style={lbl}>{label}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <div style={fieldCol}>
+          <span style={{ ...hint, fontSize: 10 }}>Horizontal (px)</span>
+          <input type="number" value={value.x ?? 0} onChange={e => onChange({ ...value, x: Number(e.target.value) || 0 })} style={numIS} />
+        </div>
+        <div style={fieldCol}>
+          <span style={{ ...hint, fontSize: 10 }}>Vertical (px)</span>
+          <input type="number" value={value.y ?? 0} onChange={e => onChange({ ...value, y: Number(e.target.value) || 0 })} style={numIS} />
+        </div>
+        <div style={fieldCol}>
+          <span style={{ ...hint, fontSize: 10 }}>Tamanho (%)</span>
+          <input type="number" min={10} max={300} value={Math.round((value.scale ?? 1) * 100)}
+            onChange={e => onChange({ ...value, scale: (Number(e.target.value) || 100) / 100 })} style={numIS} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Miniatura arrastável do Banco de Imagens ── */
 function SortableBankThumb({ img, idx, onRemove }: { img: string; idx: number; onRemove: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: img });
@@ -488,6 +517,11 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey, allPackages }
   const bgs: Record<string, SectionBg> = parseJSONSafe<Record<string, SectionBg>>(pkg.lpBackgrounds, {});
   const setBg = (key: string, bg: SectionBg) => onUpdate({ lpBackgrounds: JSON.stringify({ ...bgs, [key]: bg }) });
 
+  // Ajuste de posição/tamanho das imagens do canto (jogador/mascote + bola)
+  const cornerLayout = parseJSONSafe<{ player?: CornerAdjust; ball?: CornerAdjust }>(pkg.cornerLayout, {});
+  const setCornerLayout = (key: 'player' | 'ball', v: CornerAdjust) => onUpdate({ cornerLayout: JSON.stringify({ ...cornerLayout, [key]: v }) });
+  const isBallSport = ['futebol', 'tenis', 'basquete'].includes(pkg.sportType || 'automobilismo');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <style>{`@keyframes lp-spin { to { transform: rotate(360deg); } } .lp-spin { animation: lp-spin 1s linear infinite; }`}</style>
@@ -506,8 +540,21 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey, allPackages }
             <option value="geral">🏆 Geral</option>
           </select>
         </div>
-        <LPImageInput label="Imagem customizada do canto (opcional — substitui o mascote/jogador/carro padrão do esporte acima)"
+        <LPImageInput label={`Imagem do ${isBallSport ? 'Jogador/Mascote' : 'canto'} (estática, parada — opcional, substitui o padrão do esporte acima)`}
           value={pkg.cornerImage || ''} onChange={url => onUpdate({ cornerImage: url })} tokenKey={tokenKey} />
+        {isBallSport && (
+          <LPImageInput label="Imagem da Bola (gira ao rolar a página — opcional, substitui a bola padrão do esporte acima)"
+            value={pkg.cornerBallImage || ''} onChange={url => onUpdate({ cornerBallImage: url })} tokenKey={tokenKey} />
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: isBallSport ? '1fr 1fr' : '1fr', gap: 12 }}>
+          <CornerAdjustControl label={isBallSport ? 'Posição/Tamanho — Jogador' : 'Posição/Tamanho da imagem do canto'}
+            value={cornerLayout.player || {}} onChange={v => setCornerLayout('player', v)} />
+          {isBallSport && (
+            <CornerAdjustControl label="Posição/Tamanho — Bola"
+              value={cornerLayout.ball || {}} onChange={v => setCornerLayout('ball', v)} />
+          )}
+        </div>
+        <p style={hint}>Dica: Horizontal/Vertical positivos movem a imagem para a direita/baixo; negativos, para a esquerda/cima. Tamanho é a porcentagem em relação ao padrão (100% = original).</p>
       </LPSection>
 
       {/* ══ SEÇÃO 1 — HERO ══ */}

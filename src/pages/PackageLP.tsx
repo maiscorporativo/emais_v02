@@ -202,7 +202,28 @@ function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMo
 
 /* --- Football Kick Animation Component --- */
 /* --- Sport Ball Scroll Animation Component --- */
-function SportBall({ sport, customImage }: { sport: string; customImage?: string }) {
+interface CornerAdjust { x?: number; y?: number; scale?: number }
+interface CornerLayout { player?: CornerAdjust; ball?: CornerAdjust }
+
+// Posição/tamanho padrão (desktop e mobile) do slot "jogador/mascote" (estático) por esporte.
+const PLAYER_DEFAULTS: Record<string, { mobile: { x: number; y: number; scale: number }; desktop: { x: number; y: number; scale: number }; sizePct: number }> = {
+  tenis: { mobile: { x: 100, y: 90, scale: 0.8 }, desktop: { x: 320, y: 270, scale: 0.8 }, sizePct: 60 },
+  futebol: { mobile: { x: 125, y: 90, scale: 0.8 }, desktop: { x: 340, y: 240, scale: 0.85 }, sizePct: 50 },
+  basquete: { mobile: { x: 130, y: 70, scale: 1.2 }, desktop: { x: 400, y: 170, scale: 1.5 }, sizePct: 50 },
+  automobilismo: { mobile: { x: 70, y: 100, scale: 0.8 }, desktop: { x: 240, y: 320, scale: 0.5 }, sizePct: 60 },
+  lutas: { mobile: { x: 80, y: 80, scale: 0.5 }, desktop: { x: 300, y: 270, scale: 0.8 }, sizePct: 50 },
+};
+
+// Posição/tamanho padrão do slot "bola" (gira com o scroll) — só existe para esportes com bola.
+const BALL_DEFAULTS: Record<string, { mobileSize: number; desktopSize: number; mobile: { x: number; y: number }; desktop: { x: number; y: number } }> = {
+  futebol: { mobileSize: 24, desktopSize: 71, mobile: { x: 100, y: 60 }, desktop: { x: 290, y: 160 } },
+  tenis: { mobileSize: 15, desktopSize: 40, mobile: { x: 50, y: 100 }, desktop: { x: 150, y: 260 } },
+  basquete: { mobileSize: 30, desktopSize: 100, mobile: { x: 65, y: -65 }, desktop: { x: 160, y: -230 } },
+};
+
+function SportBall({ sport, playerImage, ballImage, layout }: {
+  sport: string; playerImage?: string; ballImage?: string; layout?: CornerLayout;
+}) {
   const [rotation, setRotation] = useState(0);
   const [scrollPercent, setScrollPercent] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -227,6 +248,75 @@ function SportBall({ sport, customImage }: { sport: string; customImage?: string
     };
   }, []);
 
+  // Esportes com "bola" própria — o jogador/mascote fica estático e a bola gira sozinha.
+  // Esportes sem bola (automobilismo/lutas) usam um único slot que troca de imagem com o scroll.
+  const hasBall = sport === 'futebol' || sport === 'tenis' || sport === 'basquete';
+  const playerAdj = layout?.player;
+  const ballAdj = layout?.ball;
+
+  // --- Jogador / mascote (estático — não gira com o scroll) ---
+  let playerSrc = '';
+  let playerAlt = 'Player';
+  // Sem bola própria (automobilismo/lutas ou esporte "geral"): a imagem customizada
+  // assume o slot único, com a leve rotação que sempre teve (não há bola para girar).
+  const playerUsesCustomGeneric = !hasBall && !!playerImage;
+
+  if (playerImage) {
+    playerSrc = fixImgPath(playerImage);
+    playerAlt = 'Decoração';
+  } else if (sport === 'automobilismo') {
+    const frame = Math.min(9, Math.max(0, Math.floor(scrollPercent * 10)));
+    playerSrc = fixImgPath(`img_f1/f1_turnarround_000${frame}_Camada-${frame + 5}.png`);
+    playerAlt = 'F1 Car';
+  } else if (sport === 'lutas') {
+    playerSrc = fixImgPath(`img_lutador/fighter_${Math.min(7, Math.max(1, Math.floor(scrollPercent * 7) + 1))}.png`);
+    playerAlt = 'Fighter';
+  } else if (sport === 'tenis') {
+    playerSrc = fixImgPath('raquete.png'); playerAlt = 'Racket';
+  } else if (sport === 'futebol') {
+    playerSrc = fixImgPath('jogador.png'); playerAlt = 'Player';
+  } else if (sport === 'basquete') {
+    playerSrc = fixImgPath('basquete_player.png'); playerAlt = 'Basketball Player';
+  }
+
+  const playerDefaults = PLAYER_DEFAULTS[sport] || PLAYER_DEFAULTS.automobilismo;
+  const pBase = playerUsesCustomGeneric
+    ? { x: isMobile ? 90 : 280, y: isMobile ? 90 : 260, scale: 1 }
+    : (isMobile ? playerDefaults.mobile : playerDefaults.desktop);
+  const pSizePct = playerUsesCustomGeneric ? 55 : playerDefaults.sizePct;
+  const pScale = pBase.scale * (playerAdj?.scale ?? 1);
+  const pX = pBase.x + (playerAdj?.x || 0);
+  const pY = pBase.y + (playerAdj?.y || 0);
+  const pTransform = playerUsesCustomGeneric
+    ? `translate(${pX}px, ${pY}px) rotate(${rotation * 0.15}deg) scale(${pScale})`
+    : `translate(${pX}px, ${pY}px) scale(${pScale})`;
+
+  // --- Bola (gira com o scroll) ---
+  const ballDefaults = BALL_DEFAULTS[sport];
+  let ballNode: React.ReactNode = null;
+  if (hasBall && ballDefaults) {
+    const bSrc = ballImage
+      ? fixImgPath(ballImage)
+      : fixImgPath(sport === 'tenis' ? 'tenis_ball.png' : sport === 'basquete' ? 'basquete_ball.png' : 'soccer_ball.png');
+    const bBase = isMobile ? ballDefaults.mobile : ballDefaults.desktop;
+    const bSize = (isMobile ? ballDefaults.mobileSize : ballDefaults.desktopSize) * (ballAdj?.scale ?? 1);
+    const bX = bBase.x + (ballAdj?.x || 0);
+    const bY = bBase.y + (ballAdj?.y || 0);
+    ballNode = (
+      <img
+        src={bSrc}
+        alt={sport === 'tenis' ? 'Tennis Ball' : sport === 'basquete' ? 'Basketball' : 'Soccer Ball'}
+        style={{
+          width: bSize,
+          height: bSize,
+          objectFit: 'contain',
+          transform: `translate(${bX}px, ${bY}px) rotate(${rotation}deg)`,
+          filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))',
+        }}
+      />
+    );
+  }
+
   return (
     <div style={{
       position: 'fixed',
@@ -240,133 +330,22 @@ function SportBall({ sport, customImage }: { sport: string; customImage?: string
       alignItems: 'center',
       justifyContent: 'center'
     }}>
-      {customImage ? (
+      {playerSrc && (
         <img
-          src={fixImgPath(customImage)}
-          alt="Decoração"
+          src={playerSrc}
+          alt={playerAlt}
           style={{
             position: 'absolute',
-            width: '55%',
-            height: '55%',
+            width: `${pSizePct}%`,
+            height: `${pSizePct}%`,
             objectFit: 'contain',
-            transform: isMobile
-              ? `translate(90px, 90px) rotate(${rotation * 0.15}deg)`
-              : `translate(280px, 260px) rotate(${rotation * 0.15}deg)`,
+            transform: pTransform,
             filter: 'drop-shadow(0 15px 45px rgba(0,0,0,0.5))',
-          }}
-        />
-      ) : (
-      <>
-      {sport === 'tenis' && (
-        <img
-          src={fixImgPath('raquete.png')}
-          alt="Racket"
-          style={{
-            position: 'absolute',
-            width: '60%',
-            height: '60%',
-            objectFit: 'contain',
-            transform: isMobile
-              ? 'rotate(0deg) translate(100px, 90px) scale(0.8)'
-              : 'rotate(0deg) translate(320px, 270px) scale(0.8)',
-            filter: 'drop-shadow(0 15px 35px rgba(0,0,0,0.4))',
-            zIndex: -1
+            zIndex: playerUsesCustomGeneric ? undefined : -1,
           }}
         />
       )}
-      {sport === 'futebol' && (
-        <img
-          src={fixImgPath('jogador.png')}
-          alt="Player"
-          style={{
-            position: 'absolute',
-            width: '50%',
-            height: '50%',
-            objectFit: 'contain',
-            transform: isMobile
-              ? 'translate(125px, 90px) scale(0.8)'
-              : 'translate(340px, 240px) scale(0.85)',
-            filter: 'drop-shadow(0 15px 45px rgba(0,0,0,0.5))',
-            zIndex: -1
-          }}
-        />
-      )}
-      {sport === 'basquete' && (
-        <img
-          src={fixImgPath('basquete_player.png')}
-          alt="Basketball Player"
-          style={{
-            position: 'absolute',
-            width: '50%',
-            height: '50%',
-            objectFit: 'contain',
-            transform: isMobile
-              ? 'translate(130px, 70px) scale(1.2)'
-              : 'translate(400px, 170px) scale(1.5)',
-            filter: 'drop-shadow(0 15px 45px rgba(0,0,0,0.5))',
-            zIndex: -1
-          }}
-        />
-      )}
-      {sport === 'automobilismo' && (
-        <img
-          src={fixImgPath(`img_f1/f1_turnarround_000${Math.min(9, Math.max(0, Math.floor(scrollPercent * 10)))}_Camada-${Math.min(9, Math.max(0, Math.floor(scrollPercent * 10))) + 5}.png`)}
-          alt="F1 Car"
-          style={{
-            position: 'absolute',
-            width: '60%',
-            height: '60%',
-            objectFit: 'contain',
-            transform: isMobile
-              ? 'translate(70px, 100px) scale(0.8)'
-              : 'translate(240px, 320px) scale(0.5)',
-            filter: 'drop-shadow(0 15px 45px rgba(0,0,0,0.5))',
-            zIndex: -1
-          }}
-        />
-      )}
-      {sport === 'lutas' && (
-        <img
-          src={fixImgPath(`img_lutador/fighter_${Math.min(7, Math.max(1, Math.floor(scrollPercent * 7) + 1))}.png`)}
-          alt="Fighter"
-          style={{
-            position: 'absolute',
-            width: '50%',
-            height: '50%',
-            objectFit: 'contain',
-            transform: isMobile
-              ? 'translate(80px, 80px) scale(0.5)'
-              : 'translate(300px, 270px) scale(0.8)',
-            filter: 'drop-shadow(0 15px 45px rgba(0,0,0,0.5))',
-            zIndex: -1
-          }}
-        />
-      )}
-      {sport !== 'lutas' && sport !== 'automobilismo' && (
-        <img
-          src={fixImgPath(sport === 'tenis' ? 'tenis_ball.png' : sport === 'basquete' ? 'basquete_ball.png' : 'soccer_ball.png')}
-          alt={sport === 'tenis' ? 'Tennis Ball' : sport === 'basquete' ? 'Basketball' : 'Soccer Ball'}
-          style={{
-            width: sport === 'futebol'
-              ? (isMobile ? '24px' : '71px')
-              : sport === 'tenis'
-                ? (isMobile ? '15px' : '40px')
-                : (isMobile ? '30px' : '100px'),
-            height: sport === 'futebol'
-              ? (isMobile ? '24px' : '71px')
-              : sport === 'tenis'
-                ? (isMobile ? '15px' : '40px')
-                : (isMobile ? '30px' : '100px'),
-            objectFit: 'contain',
-            transform: isMobile
-              ? `${sport === 'futebol' ? 'translate(100px, 60px)' : sport === 'tenis' ? 'translate(50px, 100px)' : sport === 'basquete' ? 'translate(65px, -65px)' : ''} rotate(${rotation}deg)`
-              : `${sport === 'futebol' ? 'translate(290px, 160px)' : sport === 'tenis' ? 'translate(150px, 260px)' : sport === 'basquete' ? 'translate(160px, -230px)' : ''} rotate(${rotation}deg)`,
-            filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))'
-          }}
-        />
-      )}
-      </>
-      )}
+      {ballNode}
     </div>
   );
 }
@@ -685,7 +664,9 @@ export default function PackageLP() {
   return (
     <div style={{ background: '#001529', color: '#fff', fontFamily: 'Montserrat, sans-serif', minHeight: '100vh', overflowX: 'hidden' }}>
       <PackageNavbar onBook={() => document.getElementById('conversion-section')?.scrollIntoView({ behavior: 'smooth' })} isMobile={isMobile} />
-      {(pkg.cornerImage || sport === 'futebol' || sport === 'tenis' || sport === 'basquete' || sport === 'lutas' || sport === 'automobilismo') && <SportBall sport={sport} customImage={pkg.cornerImage} />}
+      {(pkg.cornerImage || sport === 'futebol' || sport === 'tenis' || sport === 'basquete' || sport === 'lutas' || sport === 'automobilismo') && (
+        <SportBall sport={sport} playerImage={pkg.cornerImage} ballImage={pkg.cornerBallImage} layout={parseJSON(pkg.cornerLayout, {})} />
+      )}
 
       {/* --- HERO SECTION --- */}
       <section style={{ position: 'relative', height: '100vh', minHeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>

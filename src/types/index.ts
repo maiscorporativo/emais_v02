@@ -64,7 +64,9 @@ export interface TrendingPackage {
   highlights?: string; // Semicolon separated features/highlights
   sectionBackground?: string;
   sportType?: string; // Ex: 'automobilismo', 'futebol', 'tenis', etc.
-  cornerImage?: string; // Imagem customizada do canto inferior direito da LP — substitui o mascote/jogador/carro padrão do sportType quando definida
+  cornerImage?: string; // Imagem do jogador/mascote no canto (estática, não gira com o scroll) — substitui o padrão do sportType quando definida
+  cornerBallImage?: string; // Imagem da "bola" no canto (gira com o scroll) — só se aplica a futebol/tênis/basquete; substitui a bola padrão quando definida
+  cornerLayout?: string; // JSON { player?: {x,y,scale}, ball?: {x,y,scale} } — ajuste manual de posição (px) e tamanho (multiplicador) das imagens do canto
   /* ── New GP Experience LP Sections ── */
   cardsData?: string; // JSON string para Cards de Experiência
   programacaoData?: string; // JSON string para dias e programação
