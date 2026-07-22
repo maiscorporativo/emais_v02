@@ -42,16 +42,18 @@ const PORTAL_DOMAINS = {
  *  no texto bruto do payload (antes do JSON.parse) para alcançar também
  *  campos aninhados/serializados (galleryImages, cardsData, etc).
  *
- *  Só reescreve caminhos PRÓPRIOS — que começam com "/uploads/" logo após
- *  uma aspas, exatamente como nosso endpoint de upload devolve. Sem essa
- *  precisão, um replace ingênuo em QUALQUER ocorrência de "/uploads/" no
- *  texto corrompia URLs externas que têm esse mesmo trecho no meio do
- *  caminho (ex: WordPress usa .../wp-content/uploads/... universalmente) —
- *  o domínio acabava injetado no meio da URL alheia, quebrando a imagem. */
+ *  Só reescreve caminhos PRÓPRIOS — "/uploads/" logo após uma aspas (início
+ *  de string ou de elemento de array JSON) ou logo após um espaço (o
+ *  separador "; " usado por galleryImages/experienciaImages, que guardam
+ *  várias URLs numa única string, não num array — cada item depois do
+ *  primeiro vem após um espaço, não uma aspas). URLs externas com
+ *  "/uploads/" no meio do caminho (ex: WordPress usa .../wp-content/
+ *  uploads/... universalmente) sempre têm uma letra antes, nunca aspas
+ *  ou espaço — ficam intactas. */
 function absolutizeUploads(payloadText, origem) {
   const domain = PORTAL_DOMAINS[origem];
   if (!domain || origem === PORTAL) return payloadText;
-  return payloadText.split('"/uploads/').join(`"${domain}/uploads/`);
+  return payloadText.replace(/(["\s])\/uploads\//g, (_, prefix) => `${prefix}${domain}/uploads/`);
 }
 
 /** Pacotes visíveis para este portal (GP filtra automobilismo), na ordem local. */
