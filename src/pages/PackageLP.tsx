@@ -590,6 +590,36 @@ export default function PackageLP() {
   }, [pkg]);
   // --- END MAUTIC LOGIC ---
 
+  // Parse JSON data safely
+  const parseJSON = (data: any, fallback: any) => {
+    if (!data) return fallback;
+    try { return JSON.parse(data); } catch { return fallback; }
+  };
+
+  // Imagens escolhidas no admin para a seção Experiências (experienciaImages);
+  // se não houver, usa as 2 primeiras do Banco de Imagens como fallback.
+  // Imagens que foram removidas do banco ("órfãs") são ignoradas.
+  // Calculados antes dos early returns abaixo (loading/notFound) para não violar
+  // as Regras dos Hooks — useAdaptiveTopCount precisa ser chamado sempre, em toda renderização.
+  const experienciaBank = (pkg?.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
+  const experienciaPicked = (pkg?.experienciaImages || '').split(';').map(s => s.trim()).filter(Boolean).filter(u => experienciaBank.includes(u));
+  const experienciaImgs = experienciaPicked.length > 0 ? experienciaPicked : experienciaBank.slice(0, 2);
+  // A quantidade de fotos alinhadas ao lado do texto se ajusta sozinha à
+  // altura real do texto (mais texto = mais fotos cabem); o restante desce
+  // para uma grade em largura total abaixo do bloco, em vez de continuar
+  // empilhando na coluna estreita.
+  const { textRef: experienciaTextRef, topCount: experienciaTopCount } = useAdaptiveTopCount(experienciaImgs.length, isMobile);
+  const experienciaTopImgs = experienciaImgs.slice(0, experienciaTopCount);
+  const experienciaOverflowImgs = experienciaImgs.slice(experienciaTopCount);
+
+  // Destino & Lifestyle — mesma lógica de ajuste automático das fotos
+  const destino = parseJSON(pkg?.destinoLifestyleData, null);
+  const destinoImgs: string[] = destino ? (destino.imagens || []).filter((u: string) => experienciaBank.includes(u)) : [];
+  const destinoItems: string[] = destino ? (destino.items || []).filter(Boolean) : [];
+  const { textRef: destinoTextRef, topCount: destinoTopCount } = useAdaptiveTopCount(destinoImgs.length, isMobile);
+  const destinoTopImgs = destinoImgs.slice(0, destinoTopCount);
+  const destinoOverflowImgs = destinoImgs.slice(destinoTopCount);
+
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#001529', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
       <div style={{ width: 48, height: 48, border: '4px solid #002042', borderTopColor: '#f7ad40', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -607,39 +637,11 @@ export default function PackageLP() {
     </div>
   );
 
-  // Parse JSON data safely
-  const parseJSON = (data: any, fallback: any) => {
-    if (!data) return fallback;
-    try { return JSON.parse(data); } catch { return fallback; }
-  };
-
   // Visibilidade das seções opcionais da LP (visíveis por padrão)
   const vis: Record<string, boolean> = { experiencia: true, destino: true, ...parseJSON(pkg.lpSections, {}) };
 
   // Fundo customizado (imagem ou vídeo) por seção, configurável no admin
   const bgs: Record<string, { type?: 'image' | 'video'; url?: string }> = parseJSON(pkg.lpBackgrounds, {});
-
-  // Imagens escolhidas no admin para a seção Experiências (experienciaImages);
-  // se não houver, usa as 2 primeiras do Banco de Imagens como fallback.
-  // Imagens que foram removidas do banco ("órfãs") são ignoradas.
-  const experienciaBank = (pkg.galleryImages || '').split(';').map(s => s.trim()).filter(Boolean);
-  const experienciaPicked = (pkg.experienciaImages || '').split(';').map(s => s.trim()).filter(Boolean).filter(u => experienciaBank.includes(u));
-  const experienciaImgs = experienciaPicked.length > 0 ? experienciaPicked : experienciaBank.slice(0, 2);
-  // A quantidade de fotos alinhadas ao lado do texto se ajusta sozinha à
-  // altura real do texto (mais texto = mais fotos cabem); o restante desce
-  // para uma grade em largura total abaixo do bloco, em vez de continuar
-  // empilhando na coluna estreita.
-  const { textRef: experienciaTextRef, topCount: experienciaTopCount } = useAdaptiveTopCount(experienciaImgs.length, isMobile);
-  const experienciaTopImgs = experienciaImgs.slice(0, experienciaTopCount);
-  const experienciaOverflowImgs = experienciaImgs.slice(experienciaTopCount);
-
-  // Destino & Lifestyle — mesma lógica de ajuste automático das fotos
-  const destino = parseJSON(pkg.destinoLifestyleData, null);
-  const destinoImgs: string[] = destino ? (destino.imagens || []).filter((u: string) => experienciaBank.includes(u)) : [];
-  const destinoItems: string[] = destino ? (destino.items || []).filter(Boolean) : [];
-  const { textRef: destinoTextRef, topCount: destinoTopCount } = useAdaptiveTopCount(destinoImgs.length, isMobile);
-  const destinoTopImgs = destinoImgs.slice(0, destinoTopCount);
-  const destinoOverflowImgs = destinoImgs.slice(destinoTopCount);
 
   const sport = pkg.sportType || 'automobilismo';
 
