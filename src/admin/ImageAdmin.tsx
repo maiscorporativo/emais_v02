@@ -702,9 +702,10 @@ function DateRangeField({ value, onChange }: { value: string; onChange: (v: stri
 
 const MAX_TRENDING = 8;
 
-function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs = [], onUpdate, onRemove, onReorder, onSetTrending, onSetHidden, onDuplicate, onSaved, isOpen, onToggle, dragHandleProps }: {
+function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs = [], allPackages, onUpdate, onRemove, onReorder, onSetTrending, onSetHidden, onDuplicate, onSaved, isOpen, onToggle, dragHandleProps }: {
   pkg: TrendingPackage; index: number; total: number; trendingCount: number; categories: string[];
   otherSlugs?: string[];
+  allPackages?: TrendingPackage[];
   onUpdate: (d: Partial<TrendingPackage>) => void;
   onRemove: () => void;
   onReorder: (dir: 'up' | 'down') => void;
@@ -976,7 +977,7 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
             </AdminSection>
 
             {/* ── Conteúdo da Landing Page — editor compartilhado (Admin/Master/Marketing) ── */}
-            <LPContentEditor pkg={pkg} onUpdate={handleUpdate} tokenKey="emais_admin_token" />
+            <LPContentEditor pkg={pkg} onUpdate={handleUpdate} tokenKey="emais_admin_token" allPackages={allPackages} />
 
             <div style={{ marginTop: 24, padding: 16, background: '#3a0d0d1a', borderRadius: 12, border: '1px solid #3a0d0d', display: 'flex', alignItems: 'center', gap: 12 }}>
               <AlertTriangle size={20} color="#f87171" />
@@ -1061,6 +1062,7 @@ function PackagesTab() {
               trendingCount={trendingCount}
               categories={categories}
               otherSlugs={packages.filter((_, j) => j !== realIdx).map(p => (p.slug || '').toLowerCase()).filter(Boolean)}
+              allPackages={packages}
               isOpen={openRealIdx === realIdx}
               onToggle={() => setOpenRealIdx(prev => prev === realIdx ? null : realIdx)}
               onUpdate={(d: any) => updatePackage(realIdx, d)}

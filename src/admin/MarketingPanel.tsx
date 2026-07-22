@@ -107,10 +107,11 @@ function Section({ title, icon: Icon, children, color = '#3b82f6' }: { title: st
 }
 
 /* ── Marketing Editor ── */
-function MarketingEditor({ pkg, onUpdate, onCancel }: {
+function MarketingEditor({ pkg, onUpdate, onCancel, allPackages }: {
   pkg: TrendingPackage;
   onUpdate: (d: Partial<TrendingPackage>) => void;
   onCancel: () => void;
+  allPackages?: TrendingPackage[];
 }) {
   const [local, setLocal] = useState<TrendingPackage>({ ...pkg });
   const [saving, setSaving] = useState(false);
@@ -162,7 +163,7 @@ function MarketingEditor({ pkg, onUpdate, onCancel }: {
       </div>
 
       {/* ── Conteúdo da Landing Page — editor compartilhado (Admin/Master/Marketing) ── */}
-      <LPContentEditor pkg={local} onUpdate={d => setLocal(prev => ({ ...prev, ...d }))} tokenKey="emais_marketing_token" />
+      <LPContentEditor pkg={local} onUpdate={d => setLocal(prev => ({ ...prev, ...d }))} tokenKey="emais_marketing_token" allPackages={allPackages} />
 
       <div style={{ marginTop: 32 }}>
 
@@ -311,6 +312,7 @@ export default function MarketingPanel() {
             pkg={packages[editingIndex]}
             onCancel={() => setEditingIndex(null)}
             onUpdate={d => marketingUpdatePackage(editingIndex, d)}
+            allPackages={packages}
           />
         ) : (
           <div style={{ maxWidth: 1000 }}>

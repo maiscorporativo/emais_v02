@@ -181,27 +181,33 @@ function AuditTrail({ pkg }: { pkg: TrendingPackage }) {
 /* ── Package Review Card ── */
 const MAX_TRENDING = 8;
 
-function PackageReviewCard({ pkg, onApprove, onReject, onUpdate, onRemove, trendingCount }: {
+function PackageReviewCard({ pkg, onApprove, onReject, onUpdate, onRemove, trendingCount, allPackages }: {
   pkg: TrendingPackage; index: number;
   onApprove: () => void; onReject: () => void;
   onUpdate: (d: Partial<TrendingPackage>) => void;
   onRemove: () => void;
   trendingCount: number;
+  allPackages?: TrendingPackage[];
 }) {
   const [open, setOpen] = useState(false);
   const [local, setLocal] = useState<TrendingPackage>(pkg);
-  const set = (d: Partial<TrendingPackage>) => setLocal(p => ({ ...p, ...d }));
+  const [hasEdited, setHasEdited] = useState(false);
+  const set = (d: Partial<TrendingPackage>) => { setLocal(p => ({ ...p, ...d })); setHasEdited(true); };
 
-  // Sincroniza local quando pkg muda (após salvar, o hook reconstrói o array)
-  useEffect(() => { setLocal(pkg); }, [pkg]);
+  // Sincroniza local quando pkg muda (após salvar, o hook reconstrói o
+  // array). SÓ faz isso sem edições pendentes: o polling de 5s recria o
+  // array (novas referências de objeto) mesmo sem mudança real no conteúdo
+  // — sincronizar sempre apagava qualquer campo editado e ainda não salvo
+  // (o formulário "desfazia" o que o usuário tinha acabado de digitar).
+  useEffect(() => { if (!hasEdited) setLocal(pkg); }, [pkg, hasEdited]);
 
   const masterUser = localStorage.getItem(MASTER_AUTH_KEY) ?? 'master';
   const now = () => new Date().toISOString();
   const { toast } = useToast();
   const { showAlert, showConfirm } = useDialog();
 
-  const handleSaveApprove = () => { onUpdate({ ...local, status: 'approved', updatedBy: masterUser, updatedAt: now() }); toast('Edições salvas com sucesso!', 'success'); };
-  const handleSaveOnly    = () => { onUpdate({ ...local, updatedBy: masterUser, updatedAt: now() }); toast('Salvo sem aprovar.', 'info'); };
+  const handleSaveApprove = () => { onUpdate({ ...local, status: 'approved', updatedBy: masterUser, updatedAt: now() }); setHasEdited(false); toast('Edições salvas com sucesso!', 'success'); };
+  const handleSaveOnly    = () => { onUpdate({ ...local, updatedBy: masterUser, updatedAt: now() }); setHasEdited(false); toast('Salvo sem aprovar.', 'info'); };
 
   const statusColor = pkg.status === 'approved' ? '#4ade80' : pkg.status === 'rejected' ? '#f87171' : '#fbbf24';
   const statusBg    = pkg.status === 'approved' ? '#0d3320' : pkg.status === 'rejected' ? '#3a0d0d' : '#002b52';
@@ -337,7 +343,7 @@ function PackageReviewCard({ pkg, onApprove, onReject, onUpdate, onRemove, trend
           {/* ── Conteúdo da Landing Page — editor compartilhado (Admin/Master/Marketing) ── */}
           <div style={{ borderTop: '1px solid #333333', paddingTop: 14, marginTop: 4 }}>
             <p style={{ fontSize: 11, color: '#737373', margin: '0 0 12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conteúdo da Landing Page do Pacote</p>
-            <LPContentEditor pkg={local} onUpdate={set} tokenKey="emais_master_token" />
+            <LPContentEditor pkg={local} onUpdate={set} tokenKey="emais_master_token" allPackages={allPackages} />
           </div>
 
           {/* Actions */}
@@ -792,6 +798,7 @@ export default function MasterAdmin() {
                         onUpdate={d => masterUpdatePackage(realIdx, d)}
                         onRemove={() => removePackage(realIdx, localStorage.getItem('emais_master_auth') || 'master')}
                         trendingCount={packages.filter(p => p.isTrending && !p.deletedAt).length}
+                        allPackages={packages}
                       />
                     );
                   })}
