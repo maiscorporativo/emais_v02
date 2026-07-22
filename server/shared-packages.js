@@ -40,11 +40,18 @@ const PORTAL_DOMAINS = {
 
 /** Reescreve /uploads/... para a URL absoluta do domínio de origem, operando
  *  no texto bruto do payload (antes do JSON.parse) para alcançar também
- *  campos aninhados/serializados (galleryImages, cardsData, etc). */
+ *  campos aninhados/serializados (galleryImages, cardsData, etc).
+ *
+ *  Só reescreve caminhos PRÓPRIOS — que começam com "/uploads/" logo após
+ *  uma aspas, exatamente como nosso endpoint de upload devolve. Sem essa
+ *  precisão, um replace ingênuo em QUALQUER ocorrência de "/uploads/" no
+ *  texto corrompia URLs externas que têm esse mesmo trecho no meio do
+ *  caminho (ex: WordPress usa .../wp-content/uploads/... universalmente) —
+ *  o domínio acabava injetado no meio da URL alheia, quebrando a imagem. */
 function absolutizeUploads(payloadText, origem) {
   const domain = PORTAL_DOMAINS[origem];
   if (!domain || origem === PORTAL) return payloadText;
-  return payloadText.split('/uploads/').join(`${domain}/uploads/`);
+  return payloadText.split('"/uploads/').join(`"${domain}/uploads/`);
 }
 
 /** Pacotes visíveis para este portal (GP filtra automobilismo), na ordem local. */
