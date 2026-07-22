@@ -16,8 +16,24 @@
 import React, { useState } from 'react';
 import {
   Image as ImageIcon, Plus, Trash2, X, Video, LayoutGrid, CalendarDays,
-  BedDouble, Star, Images, Loader2, DollarSign, Medal, Check, MapPin,
+  BedDouble, Star, Images, Loader2, DollarSign, Medal, Check, MapPin, GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { TrendingPackage } from '../types';
 import { useContentConfig } from '../hooks/useContentConfig';
 
@@ -148,7 +164,32 @@ function LPImageInput({ label, value, onChange, tokenKey }: {
   );
 }
 
-/* ── Banco de Imagens (upload múltiplo + grade de miniaturas) ──
+/* ── Miniatura arrastável do Banco de Imagens ── */
+function SortableBankThumb({ img, idx, onRemove }: { img: string; idx: number; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: img });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden',
+    border: '1px solid #003866', cursor: 'grab', touchAction: 'none',
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <img src={img} alt={`Imagem ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+      <button onClick={e => { e.stopPropagation(); onRemove(); }} title="Remover do banco"
+        style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.75)', border: '1px solid #444', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+        <X size={11} />
+      </button>
+      <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 9, fontWeight: 800, color: '#fff', background: 'rgba(0,0,0,0.65)', padding: '1px 6px', borderRadius: 6 }}>{idx + 1}</span>
+      <div style={{ position: 'absolute', top: 4, left: 4, width: 18, height: 18, borderRadius: 4, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+        <GripVertical size={11} />
+      </div>
+    </div>
+  );
+}
+
+/* ── Banco de Imagens (upload múltiplo + grade de miniaturas, arrastável) ──
  * otherPackages: bancos de outros pacotes do portal (título + imagens), para
  * o seletor "Importar de outro pacote..." — evita reenviar a mesma foto que
  * já foi enviada em outro pacote. */
@@ -188,6 +229,25 @@ function ImageBankManager({ value, onChange, tokenKey, otherPackages }: {
 
   const importable = (otherPackages || []).filter(p => p.images.length > 0);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = images.indexOf(active.id as string);
+      const newIndex = images.indexOf(over.id as string);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const next = [...images];
+        const [moved] = next.splice(oldIndex, 1);
+        next.splice(newIndex, 0, moved);
+        onChange(joinList(next));
+      }
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -222,16 +282,13 @@ function ImageBankManager({ value, onChange, tokenKey, otherPackages }: {
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 10 }}>
-        {images.map((img, idx) => (
-          <div key={`${idx}-${img}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: '1px solid #003866' }}>
-            <img src={img} alt={`Imagem ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            <button onClick={() => removeAt(idx)} title="Remover do banco"
-              style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.75)', border: '1px solid #444', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-              <X size={11} />
-            </button>
-            <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 9, fontWeight: 800, color: '#fff', background: 'rgba(0,0,0,0.65)', padding: '1px 6px', borderRadius: 6 }}>{idx + 1}</span>
-          </div>
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={images} strategy={rectSortingStrategy}>
+            {images.map((img, idx) => (
+              <SortableBankThumb key={img} img={img} idx={idx} onRemove={() => removeAt(idx)} />
+            ))}
+          </SortableContext>
+        </DndContext>
         <label style={{ aspectRatio: '1', borderRadius: 10, border: '1px dashed #333', background: '#002042', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: uploading ? 'wait' : 'pointer', color: '#f7ad40' }}>
           {uploading ? <Loader2 size={18} className="lp-spin" /> : <Plus size={18} />}
           <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', textAlign: 'center', lineHeight: 1.3 }}>{uploading ? 'Enviando...' : 'Adicionar fotos'}</span>
@@ -239,6 +296,7 @@ function ImageBankManager({ value, onChange, tokenKey, otherPackages }: {
         </label>
       </div>
       {images.length === 0 && <p style={hint}>Nenhuma imagem no banco ainda. Você pode selecionar várias fotos de uma vez.</p>}
+      {images.length > 1 && <p style={hint}>💡 Arraste as fotos para reordenar o banco.</p>}
       {error && <span style={{ fontSize: 11, color: '#f87171' }}>{error}</span>}
     </div>
   );
