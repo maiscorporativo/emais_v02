@@ -168,10 +168,21 @@ export function useContentConfig() {
   const lastUpdated = useRef<string>('');
   const isSaving = useRef(false);
   const hasLocalUnsaved = useRef(false);
+  // Incrementado a cada edição local (ver persist()). Um refetch() em voo
+  // captura a versão vigente ANTES do fetch; se uma edição local começar (e
+  // talvez já terminar de salvar) enquanto esse GET ainda está em trânsito, a
+  // versão muda e a resposta — que reflete dados de ANTES da edição — é
+  // descartada. Sem isso, um GET lento (rede instável, poll disparado antes
+  // de digitar) podia responder DEPOIS do save mais recente já ter zerado
+  // hasLocalUnsaved/isSaving, sobrescrevendo silenciosamente o que acabou de
+  // ser digitado — exatamente o sintoma de "o formulário desfaz o que acabei
+  // de digitar" quando a conexão está lenta.
+  const editVersion = useRef(0);
 
   const refetch = useCallback(async () => {
     if (isSaving.current) return;
     if (hasLocalUnsaved.current) return; // não sobrescrebe se há alterações locais não salvas
+    const startVersion = editVersion.current;
     try {
       const res = await fetch(`/api/content?b64=1&t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache' }});
       if (!res.ok) return;
@@ -182,6 +193,9 @@ export function useContentConfig() {
       
       // Secondary check: if local changes happened during the fetch, do NOT overwrite them!
       if (isSaving.current || hasLocalUnsaved.current) return;
+      // Terceiro check: mesmo com as flags acima já zeradas, esta resposta pode
+      // ser de uma requisição iniciada ANTES de uma edição que já foi salva.
+      if (editVersion.current !== startVersion) return;
 
       lastUpdated.current = serverKey;
       const data: ContentStore = {
@@ -284,6 +298,7 @@ export function useContentConfig() {
   }, []);
 
   const persist = useCallback((next: ContentStore, immediate = false): Promise<void> => {
+    editVersion.current++;
     isSaving.current = true;
     hasLocalUnsaved.current = true;
     setContent(next);
