@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Calendar, Users, MapPin,
-  MessageCircle, AlertTriangle, Zap, Trophy, Headset, ChevronRight, ChevronLeft, X
+  MessageCircle, AlertTriangle, Zap, Trophy, Headset, ChevronRight, ChevronLeft, X, Ticket
 } from 'lucide-react';
 import { useContentConfig } from '../hooks/useContentConfig';
 import type { TrendingPackage } from '../types';
@@ -945,6 +945,43 @@ export default function PackageLP() {
                 <div style={{ color: '#fbbf24', marginBottom: 12 }}><Users size={32} style={{ margin: '0 auto' }} /></div>
                 <div style={{ fontSize: 12, color: '#666', fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>Duração</div>
                 <div style={{ fontSize: 18, fontWeight: 800 }}>{pacotes.datas.duracao}</div>
+              </div>
+            </div>
+          )}
+
+          {/* --- BANNER "SOMENTE INGRESSO" (para quem já está na Europa) --- */}
+          {pkg.euTicketBannerTitle && (
+            <div style={{
+              marginTop: 40,
+              position: 'relative',
+              borderRadius: 24,
+              overflow: 'hidden',
+              padding: isMobile ? '36px 24px' : '48px 64px',
+              background: 'linear-gradient(120deg, #f7ad40 0%, #f2952e 38%, #002042 100%)',
+              boxShadow: '0 24px 60px -16px rgba(247,173,64,0.35)',
+              textAlign: 'center',
+            }}>
+              <Ticket size={isMobile ? 130 : 220} style={{ position: 'absolute', top: '50%', right: isMobile ? -50 : -20, transform: 'translateY(-50%) rotate(-15deg)', color: '#002042', opacity: 0.14, pointerEvents: 'none' }} />
+              <Ticket size={isMobile ? 80 : 140} style={{ position: 'absolute', bottom: -28, left: isMobile ? -30 : -10, transform: 'rotate(20deg)', color: '#fff', opacity: 0.08, pointerEvents: 'none' }} />
+
+              <div style={{ position: 'relative', zIndex: 1, maxWidth: 760, margin: '0 auto' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(0,21,41,0.9)', color: '#f7ad40', fontSize: 11, fontWeight: 900, letterSpacing: '1.5px', textTransform: 'uppercase', padding: '8px 20px', borderRadius: 100, marginBottom: 22 }}>
+                  <Ticket size={13} /> Somente Ingresso
+                </span>
+                <h3 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 900, color: '#001529', margin: '0 0 14px', lineHeight: 1.3 }}>
+                  {pkg.euTicketBannerTitle}
+                </h3>
+                {pkg.euTicketBannerText && (
+                  <p style={{ fontSize: isMobile ? 14 : 16.5, fontStyle: 'italic', fontWeight: 600, color: '#001529', opacity: 0.82, margin: '0 auto 30px', lineHeight: 1.6, maxWidth: 560 }}>
+                    {pkg.euTicketBannerText}
+                  </p>
+                )}
+                <button
+                  onClick={() => document.getElementById('conversion-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  style={{ background: '#001529', color: '#fff', border: 'none', borderRadius: 12, padding: '15px 38px', fontSize: 13, fontWeight: 800, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em', boxShadow: '0 8px 20px rgba(0,0,0,0.25)' }}
+                >
+                  Falar com um Consultor
+                </button>
               </div>
             </div>
           )}

@@ -16,7 +16,7 @@
 import React, { useState } from 'react';
 import {
   Image as ImageIcon, Plus, Trash2, X, Video, LayoutGrid, CalendarDays,
-  BedDouble, Star, Images, Loader2, DollarSign, Medal, Check, MapPin, GripVertical,
+  BedDouble, Star, Images, Loader2, DollarSign, Medal, Check, MapPin, GripVertical, Ticket,
 } from 'lucide-react';
 import {
   DndContext,
@@ -731,6 +731,21 @@ export default function LPContentEditor({ pkg, onUpdate, tokenKey, allPackages }
             <div style={lbl}>Inclusos padrão (usados quando o card não tem inclusos próprios)</div>
             <InclusosEditor items={pacotes.inclusos || []} addLabel="Adicionar item global"
               onChange={items => setPacotes({ ...pacotes, inclusos: items })} />
+          </div>
+
+          <div style={{ padding: 14, background: 'linear-gradient(135deg, rgba(247,173,64,0.1), rgba(0,32,66,0.4))', borderRadius: 10, border: '1px solid #f7ad40', display: 'grid', gap: 10 }}>
+            <div style={{ ...lbl, color: '#f7ad40' }}><Ticket size={11} /> Banner "Somente Ingresso" (opcional)</div>
+            <p style={hint}>Aparece como um banner de destaque abaixo dos cards de pacote, para atrair quem já está na Europa (ou de passagem) e só precisa do ingresso — sem o pacote completo. Só aparece na LP quando o título abaixo estiver preenchido; deixe em branco para ocultar.</p>
+            <div style={fieldCol}>
+              <label style={lbl}>Título do banner</label>
+              <textarea rows={2} placeholder="Ex: Você vive na Europa, está de passagem e só precisa dos ingressos?"
+                value={pkg.euTicketBannerTitle || ''} onChange={e => onUpdate({ euTicketBannerTitle: e.target.value })} style={{ ...IS, resize: 'vertical' }} />
+            </div>
+            <div style={fieldCol}>
+              <label style={lbl}>Subtítulo / chamada (aparece em itálico)</label>
+              <textarea rows={2} placeholder="Ex: Fale conosco! Abriremos os portões desse Clássico para você!"
+                value={pkg.euTicketBannerText || ''} onChange={e => onUpdate({ euTicketBannerText: e.target.value })} style={{ ...IS, resize: 'vertical' }} />
+            </div>
           </div>
         </div>
       </LPSection>
