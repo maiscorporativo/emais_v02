@@ -151,7 +151,7 @@ function PhotoGallery({ images, isMobile, themeColor }: { images: string[]; isMo
       <div style={{ width: '100%', height: isMobile ? 300 : 500, borderRadius: 24, overflow: 'hidden', position: 'relative', border: '1px solid #003866' }}>
         {images.map((img, i) => (
           <img key={i} src={fixImgPath(img)} onClick={() => setLightboxOpen(true)} title="Clique para ampliar"
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: i === active ? 1 : 0, transition: 'opacity 0.6s ease-in-out', cursor: 'zoom-in' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', opacity: i === active ? 1 : 0, transition: 'opacity 0.6s ease-in-out', cursor: 'zoom-in' }}
             alt={`Foto ${i + 1}`} />
         ))}
         {images.length > 1 && (
@@ -352,6 +352,7 @@ function SportBall({ sport, playerImage, ballImage, layout }: {
 
 /* --- Package Navbar Component --- */
 function PackageNavbar({ onBook, isMobile }: { onBook: () => void, isMobile: boolean }) {
+  const navigate = useNavigate();
   const scrollTo = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     const el = document.getElementById(id);
@@ -366,7 +367,7 @@ function PackageNavbar({ onBook, isMobile }: { onBook: () => void, isMobile: boo
     }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {/* Logos */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 24, cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 24, cursor: 'pointer' }} onClick={() => navigate('/')} title="Voltar para a Home">
           <img src="/emais-logo.svg" alt="E-Mais" className="h-10 w-auto" />
         </div>
 
