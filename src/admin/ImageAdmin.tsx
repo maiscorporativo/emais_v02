@@ -680,7 +680,7 @@ function DateRangeField({ value, onChange }: { value: string; onChange: (v: stri
         </label>
         <input
           type="date"
-          value={toInput(start)}
+          defaultValue={toInput(start)}
           onChange={e => handleStart(e.target.value)}
           style={inputStyle}
         />
@@ -691,7 +691,7 @@ function DateRangeField({ value, onChange }: { value: string; onChange: (v: stri
         </label>
         <input
           type="date"
-          value={toInput(end)}
+          defaultValue={toInput(end)}
           onChange={e => handleEnd(e.target.value)}
           style={inputStyle}
         />
