@@ -130,7 +130,9 @@ async function fetchContent(): Promise<ContentStore> {
   };
 }
 
-async function putContent(data: ContentStore & { heroImages?: Record<string, string> }) {
+interface SaveResult { newlyAssignedSharedIds?: { createdAt: string; sharedId: number }[] }
+
+async function putContent(data: ContentStore & { heroImages?: Record<string, string> }): Promise<SaveResult> {
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${getSessionToken()}`,
@@ -149,6 +151,7 @@ async function putContent(data: ContentStore & { heroImages?: Record<string, str
     const errData = await res.json().catch(() => ({}));
     throw new Error(errData.details || errData.error || 'Save failed');
   }
+  return res.json().catch(() => ({}));
 }
 
 const UPDATE_EVENT = 'emais_content_update';
@@ -308,9 +311,30 @@ export function useContentConfig() {
         // reinjetava esse retrato antigo no banco, apagando imagens novas
         // da galeria Hero. useImageConfig.ts já salva heroImages sozinho, e
         // o servidor preserva o campo existente quando ele vem ausente.
-        await putContent(merged);
+        const result = await putContent(merged);
         setSaveError(null);
         bc?.postMessage('update');
+        // Aplica de volta os sharedId recém-atribuídos a pacotes novos/
+        // duplicados desta chamada — sem isso, o próximo autosave enviaria
+        // sharedId ausente de novo e o servidor criaria OUTRA linha na
+        // tabela compartilhada a cada edição, em vez de atualizar a mesma
+        // (ver saveSharedPackages no backend). É exatamente o que fazia a
+        // edição de um pacote recém-duplicado "reverter" texto: cada
+        // autosave criava uma linha nova, e um refetch passava a mostrar
+        // outra linha no lugar da que estava aberta.
+        if (result.newlyAssignedSharedIds?.length) {
+          setContent(prev => {
+            const updated = {
+              ...prev,
+              packages: prev.packages.map(p => {
+                const match = result.newlyAssignedSharedIds!.find(a => a.createdAt && a.createdAt === p.createdAt);
+                return match ? { ...p, sharedId: match.sharedId } : p;
+              }),
+            };
+            saveCache(updated);
+            return updated;
+          });
+        }
       } catch (err: any) {
         console.warn('[useContentConfig] API save failed:', err);
         setSaveError(err.message || 'Erro desconhecido ao salvar');

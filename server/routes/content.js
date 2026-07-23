@@ -135,9 +135,10 @@ async function saveContent(body, res) {
        apenas os controles locais). O site_content guarda como backup somente
        os pacotes deste portal. */
     let backupPackages = packages;
+    let newlyAssignedSharedIds = [];
     if (sharedDbEnabled() && packages !== undefined) {
       try {
-        await saveSharedPackages(packages);
+        newlyAssignedSharedIds = await saveSharedPackages(packages);
         backupPackages = packages.filter(p => !p.origem || p.origem === PORTAL);
       } catch (err) {
         // Banco compartilhado indisponível: NÃO aborta o salvamento — grava
@@ -191,7 +192,7 @@ async function saveContent(body, res) {
       [finalEvents, finalPackages, finalTestimonials, finalHeroImages, finalCategories, finalIcons]
     );
     broadcastUpdate();
-    res.json({ ok: true });
+    res.json({ ok: true, newlyAssignedSharedIds });
   } catch (err) {
     console.error('[PUT /api/content] Database error details:', err);
     res.status(500).json({

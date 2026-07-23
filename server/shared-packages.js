@@ -76,11 +76,19 @@ export async function listSharedPackages() {
   return packages;
 }
 
-/** Sincroniza o array completo vindo do front com a tabela compartilhada. */
+/** Sincroniza o array completo vindo do front com a tabela compartilhada.
+ *  Retorna a lista de sharedId recém-atribuídos (novos INSERTs), casados por
+ *  createdAt, para o chamador devolver ao front — sem isso, um pacote recém
+ *  criado/duplicado (que chega aqui sem sharedId) seria inserido de novo a
+ *  CADA save subsequente enquanto o usuário ainda está editando (o front
+ *  nunca aprende o id atribuído), gerando uma linha nova por autosave e
+ *  bagunçando a lista (o campo aberto passa a refletir outra linha depois de
+ *  um refetch — parecendo que a digitação "voltou"). */
 export async function saveSharedPackages(packages) {
   const [rows] = await sharedPool.query('SELECT id, origem FROM shared_packages');
   const byId = new Map(rows.map(r => [r.id, r]));
   const seen = new Set();
+  const newlyAssigned = [];
 
   for (let i = 0; i < packages.length; i++) {
     const pkg = packages[i] || {};
@@ -99,6 +107,7 @@ export async function saveSharedPackages(packages) {
         [PORTAL, esporte, JSON.stringify(payload), alta, vis, i, i, i]
       );
       seen.add(res.insertId);
+      if (pkg.createdAt) newlyAssigned.push({ createdAt: pkg.createdAt, sharedId: res.insertId });
       continue;
     }
 
@@ -132,4 +141,6 @@ export async function saveSharedPackages(packages) {
       await sharedPool.query('DELETE FROM shared_packages WHERE id = ?', [r.id]);
     }
   }
+
+  return newlyAssigned;
 }
