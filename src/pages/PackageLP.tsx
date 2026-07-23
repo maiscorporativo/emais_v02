@@ -890,7 +890,7 @@ export default function PackageLP() {
                     <div style={{ flex: 1, marginBottom: 32 }}>
                       <div style={{ fontSize: 12, fontWeight: 800, color: '#444', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 16 }}>O que está incluso:</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        {showInclusos.slice(0, 5).map((inc: any, j: number) => (
+                        {showInclusos.map((inc: any, j: number) => (
                           <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                             <CheckCircle2 size={16} color={i === 0 ? '#f7ad40' : '#fbbf24'} style={{ marginTop: 2, flexShrink: 0 }} />
                             <div>

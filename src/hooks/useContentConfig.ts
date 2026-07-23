@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { EventHighlight, TrendingPackage } from '../types';
 import { slugify, uniqueSlug } from '../utils/slug';
 import {
@@ -154,6 +154,47 @@ async function putContent(data: ContentStore & { heroImages?: Record<string, str
 const UPDATE_EVENT = 'emais_content_update';
 const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('emais_content') : null;
 
+/* ── Estado de edição compartilhado entre TODAS as instâncias do hook nesta
+ * aba ──
+ * useContentConfig() é chamado várias vezes simultaneamente na mesma tela do
+ * admin (ex: um contador no topo da página junto com o formulário de edição
+ * de pacotes, cada um em seu próprio componente). Se isSaving/hasLocalUnsaved
+ * /editVersion fossem um useRef DENTRO do hook, cada instância teria a sua
+ * própria cópia — e uma instância que nunca chama persist() (só lê
+ * `packages` pra exibir uma contagem, por exemplo) ficaria com
+ * hasLocalUnsaved=false PARA SEMPRE. O polling de 5s DELA nunca seria
+ * bloqueado, e continuaria sobrescrevendo o cache local (localStorage) e o
+ * próprio estado React dela com dado desatualizado, mesmo enquanto OUTRA
+ * instância, na mesma aba, está com uma edição em andamento ainda não salva
+ * — exatamente o padrão que fazia a digitação no admin ser revertida quase
+ * caractere a caractere. Por isso este objeto vive no escopo do MÓDULO
+ * (compartilhado por todas as instâncias da aba), não dentro da função do
+ * hook. */
+const editState = {
+  isSaving: false,
+  hasLocalUnsaved: false,
+  lastUpdated: '',
+  // Incrementado a cada edição local (ver persist()). Um refetch() em voo
+  // captura a versão vigente ANTES do fetch; se uma edição local começar (e
+  // talvez já terminar de salvar) enquanto esse GET ainda está em trânsito, a
+  // versão muda e a resposta — que reflete dados de ANTES da edição — é
+  // descartada. Sem isso, um GET lento (rede instável, poll disparado antes
+  // de digitar) podia responder DEPOIS do save mais recente já ter zerado
+  // hasLocalUnsaved/isSaving, sobrescrevendo silenciosamente o que acabou de
+  // ser digitado — exatamente o sintoma de "o formulário desfaz o que acabei
+  // de digitar" quando a conexão está lenta.
+  editVersion: 0,
+};
+
+/* ── Fila de salvamento compartilhada entre todas as instâncias ──
+ * Mesma razão do editState acima: se cada instância tivesse sua própria fila,
+ * duas instâncias salvando ao mesmo tempo (ex: a edição de um pacote e um
+ * "Resetar Tudo"/"Importar JSON" disparado a partir de outra parte do admin)
+ * poderiam gerar duas requisições PUT concorrentes e fora de ordem. */
+const saveTimeoutRef: { current: ReturnType<typeof setTimeout> | null } = { current: null };
+const saveChainRef: { current: Promise<void> } = { current: Promise.resolve() };
+const pendingNextRef: { current: ContentStore | null } = { current: null };
+
 export function useContentConfig() {
   const cached = loadCache();
   const [content, setContent] = useState<ContentStore>(cached ?? {
@@ -165,39 +206,26 @@ export function useContentConfig() {
   const [loading, setLoading] = useState(!cached);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const lastUpdated = useRef<string>('');
-  const isSaving = useRef(false);
-  const hasLocalUnsaved = useRef(false);
-  // Incrementado a cada edição local (ver persist()). Um refetch() em voo
-  // captura a versão vigente ANTES do fetch; se uma edição local começar (e
-  // talvez já terminar de salvar) enquanto esse GET ainda está em trânsito, a
-  // versão muda e a resposta — que reflete dados de ANTES da edição — é
-  // descartada. Sem isso, um GET lento (rede instável, poll disparado antes
-  // de digitar) podia responder DEPOIS do save mais recente já ter zerado
-  // hasLocalUnsaved/isSaving, sobrescrevendo silenciosamente o que acabou de
-  // ser digitado — exatamente o sintoma de "o formulário desfaz o que acabei
-  // de digitar" quando a conexão está lenta.
-  const editVersion = useRef(0);
 
   const refetch = useCallback(async () => {
-    if (isSaving.current) return;
-    if (hasLocalUnsaved.current) return; // não sobrescrebe se há alterações locais não salvas
-    const startVersion = editVersion.current;
+    if (editState.isSaving) return;
+    if (editState.hasLocalUnsaved) return; // não sobrescrebe se há alterações locais não salvas
+    const startVersion = editState.editVersion;
     try {
       const res = await fetch(`/api/content?b64=1&t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache' }});
       if (!res.ok) return;
       const json = unwrapContentResponse(await res.json());
       
       const serverKey = json.updated_at || JSON.stringify(json).slice(0, 40);
-      if (serverKey === lastUpdated.current) return;
-      
+      if (serverKey === editState.lastUpdated) return;
+
       // Secondary check: if local changes happened during the fetch, do NOT overwrite them!
-      if (isSaving.current || hasLocalUnsaved.current) return;
+      if (editState.isSaving || editState.hasLocalUnsaved) return;
       // Terceiro check: mesmo com as flags acima já zeradas, esta resposta pode
       // ser de uma requisição iniciada ANTES de uma edição que já foi salva.
-      if (editVersion.current !== startVersion) return;
+      if (editState.editVersion !== startVersion) return;
 
-      lastUpdated.current = serverKey;
+      editState.lastUpdated = serverKey;
       const data: ContentStore = {
         events:         json.events         ?? DEFAULT_EVENTS,
         packages:       json.packages       ?? DEFAULT_PACKAGES,
@@ -213,11 +241,13 @@ export function useContentConfig() {
     let active = true;
 
     if (cached) {
-      lastUpdated.current = JSON.stringify(cached).slice(0, 40);
+      // Só inicializa se nenhuma outra instância do hook, nesta mesma aba, já
+      // tiver avançado o valor compartilhado (ex: via um refetch mais recente).
+      if (!editState.lastUpdated) editState.lastUpdated = JSON.stringify(cached).slice(0, 40);
       setLoading(false);
     } else {
       fetchContent()
-        .then(data => { if (active) { setContent(data); saveCache(data); lastUpdated.current = JSON.stringify(data).slice(0, 40); } })
+        .then(data => { if (active) { setContent(data); saveCache(data); if (!editState.lastUpdated) editState.lastUpdated = JSON.stringify(data).slice(0, 40); } })
         .catch(() => {})
         .finally(() => { if (active) setLoading(false); });
     }
@@ -243,14 +273,10 @@ export function useContentConfig() {
      podiam completar fora de ordem — a mais antiga "vencendo" por último e
      revertendo parte do que o usuário tinha acabado de digitar (tanto na
      tela, via refetch(), quanto no próprio banco). */
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveChain = useRef<Promise<void>>(Promise.resolve());
-  const pendingNext = useRef<ContentStore | null>(null);
-
   const drainSaveQueue = useCallback(async (): Promise<void> => {
-    while (pendingNext.current !== null) {
-      const next = pendingNext.current;
-      pendingNext.current = null;
+    while (pendingNextRef.current !== null) {
+      const next = pendingNextRef.current;
+      pendingNextRef.current = null;
       setSaving(true);
       setSaveError(null);
 
@@ -292,25 +318,25 @@ export function useContentConfig() {
         // enfileirada, ela ainda tenta salvar em seguida.
       }
     }
-    isSaving.current = false;
-    hasLocalUnsaved.current = false;
+    editState.isSaving = false;
+    editState.hasLocalUnsaved = false;
     setSaving(false);
   }, []);
 
   const persist = useCallback((next: ContentStore, immediate = false): Promise<void> => {
-    editVersion.current++;
-    isSaving.current = true;
-    hasLocalUnsaved.current = true;
+    editState.editVersion++;
+    editState.isSaving = true;
+    editState.hasLocalUnsaved = true;
     setContent(next);
     saveCache(next);
-    lastUpdated.current = 'local-edit';
-    pendingNext.current = next;
+    editState.lastUpdated = 'local-edit';
+    pendingNextRef.current = next;
 
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
     const enqueue = () => {
-      const run = saveChain.current.then(drainSaveQueue);
-      saveChain.current = run.catch(() => {});
+      const run = saveChainRef.current.then(drainSaveQueue);
+      saveChainRef.current = run.catch(() => {});
       return run;
     };
 
@@ -318,7 +344,7 @@ export function useContentConfig() {
       return enqueue();
     }
     return new Promise((resolve, reject) => {
-      saveTimeout.current = setTimeout(() => {
+      saveTimeoutRef.current = setTimeout(() => {
         enqueue().then(resolve, reject);
       }, 1000);
     });
