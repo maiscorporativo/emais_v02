@@ -682,6 +682,14 @@ function DateRangeField({ value, onChange }: { value: string; onChange: (v: stri
           type="date"
           defaultValue={toInput(start)}
           onChange={e => handleStart(e.target.value)}
+          // Rede de segurança: o Chromium só dispara onChange na 1ª vez que a
+          // data "fecha" (dia+mês completos + 1º dígito do ano já formam uma
+          // data válida, mesmo que estranha, ex: ano 0002). Os dígitos
+          // seguintes do ano continuam corretos NA TELA (o campo não é mais
+          // controlado), mas o navegador não dispara onChange de novo — então
+          // sem isto, o valor salvo ficava preso no primeiro dígito digitado.
+          // onBlur relê o valor final assim que o usuário sai do campo.
+          onBlur={e => handleStart(e.target.value)}
           style={inputStyle}
         />
       </div>
@@ -693,6 +701,7 @@ function DateRangeField({ value, onChange }: { value: string; onChange: (v: stri
           type="date"
           defaultValue={toInput(end)}
           onChange={e => handleEnd(e.target.value)}
+          onBlur={e => handleEnd(e.target.value)}
           style={inputStyle}
         />
       </div>
