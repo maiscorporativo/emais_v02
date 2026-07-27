@@ -471,7 +471,7 @@ function TrendingTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ marginBottom: 4 }}>
         <p style={{ fontSize: 13, color: '#737373', margin: 0 }}>
-          Pacotes marcados como 🔥 <strong style={{ color: '#f7ad40' }}>Em Alta</strong>. Estes aparecem no carrossel principal do site. Máximo de {MAX_TRENDING}.
+          Pacotes marcados como 🔥 <strong style={{ color: '#f7ad40' }}>Em Alta</strong>. Estes aparecem no carrossel principal do site.
         </p>
       </div>
       {trending.length === 0 && <EmptyState text="Nenhum pacote marcado como Em Alta. Vá em Pacotes e ative o toggle 🔥." />}
@@ -502,10 +502,11 @@ function TrendingTab() {
           </div>
         );
       })}
-      <div style={{ marginTop: 8, padding: '10px 14px', background: '#002042', border: '1px solid #333333', borderRadius: 8, fontSize: 12, color: '#737373' }}>
-        {trending.length}/{MAX_TRENDING} slots usados
-        <span style={{ display: 'inline-block', width: `${(trending.length / MAX_TRENDING) * 100}%`, height: 4, background: trending.length >= MAX_TRENDING ? '#f87171' : '#f7ad40', borderRadius: 2, marginLeft: 8, verticalAlign: 'middle', maxWidth: 120 }} />
-      </div>
+      {trending.length > 0 && (
+        <div style={{ marginTop: 8, padding: '10px 14px', background: '#002042', border: '1px solid #333333', borderRadius: 8, fontSize: 12, color: '#737373' }}>
+          {trending.length} pacote{trending.length === 1 ? '' : 's'} em Em Alta
+        </div>
+      )}
     </div>
   );
 }
@@ -709,10 +710,8 @@ function DateRangeField({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
-const MAX_TRENDING = 8;
-
-function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs = [], allPackages, onUpdate, onRemove, onReorder, onSetTrending, onSetHidden, onDuplicate, onSaved, isOpen, onToggle, dragHandleProps }: {
-  pkg: TrendingPackage; index: number; total: number; trendingCount: number; categories: string[];
+function PackageCard({ pkg, index, total, categories, otherSlugs = [], allPackages, onUpdate, onRemove, onReorder, onSetTrending, onSetHidden, onDuplicate, onSaved, isOpen, onToggle, dragHandleProps }: {
+  pkg: TrendingPackage; index: number; total: number; categories: string[];
   otherSlugs?: string[];
   allPackages?: TrendingPackage[];
   onUpdate: (d: Partial<TrendingPackage>) => void;
@@ -726,7 +725,7 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
   onToggle: () => void;
   dragHandleProps?: any;
 }) {
-  const { showAlert, showConfirm } = useDialog();
+  const { showConfirm } = useDialog();
   const [trendMsg, setTrendMsg] = useState<string | null>(null);
   const [hasEdited, setHasEdited] = useState(false);
 
@@ -738,10 +737,6 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
   const handleUpdate = (d: Partial<TrendingPackage>) => { onUpdate(d); setHasEdited(true); };
 
   const handleTrendToggle = () => {
-    if (!pkg.isTrending && trendingCount >= MAX_TRENDING) {
-      showAlert(`Já existem ${MAX_TRENDING} pacotes em "Pacotes em Alta". Desative um antes de ativar este.`, 'warning');
-      return;
-    }
     const next = !pkg.isTrending;
     onSetTrending(next); // direto — sem status: 'pending'
     const msg = next
@@ -813,7 +808,7 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
               <div style={{ background: '#001a33', border: '1px solid #333333', borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: pkg.isTrending ? '#f7ad40' : '#737373', display: 'flex', alignItems: 'center', gap: 4 }}><Flame size={12} /> Em Alta neste portal</span>
                 <button type="button" onClick={handleTrendToggle}
-                  style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .2s', background: pkg.isTrending ? '#f7ad40' : '#333333', opacity: !pkg.isTrending && trendingCount >= MAX_TRENDING ? 0.5 : 1 }}>
+                  style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .2s', background: pkg.isTrending ? '#f7ad40' : '#333333' }}>
                   <span style={{ position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s', left: pkg.isTrending ? 23 : 3 }} />
                 </button>
               </div>
@@ -932,8 +927,8 @@ function PackageCard({ pkg, index, total, trendingCount, categories, otherSlugs 
                   <button
                     type="button"
                     style={{
-                      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: pkg.isTrending || trendingCount < MAX_TRENDING ? 'pointer' : 'not-allowed', position: 'relative', transition: 'background .2s',
-                      background: pkg.isTrending ? '#f7ad40' : '#333333', opacity: !pkg.isTrending && trendingCount >= MAX_TRENDING ? 0.5 : 1,
+                      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .2s',
+                      background: pkg.isTrending ? '#f7ad40' : '#333333',
                     }}
                     onClick={handleTrendToggle}
                   >
@@ -1024,7 +1019,6 @@ function PackagesTab() {
   const activePackages = packages
     .map((p, realIdx) => ({ p, realIdx }))
     .filter(({ p }) => !p.deletedAt);
-  const trendingCount = activePackages.filter(({ p }) => p.isTrending === true).length;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1054,11 +1048,6 @@ function PackagesTab() {
         </p>
         <button onClick={() => { addPackage(); toast('Pacote criado!', 'success'); }} style={addBtn}><Plus size={14} /> Adicionar Pacote</button>
       </div>
-      {trendingCount >= MAX_TRENDING && (
-        <div style={{ background: '#1a1400', border: '1px solid #7a4a00', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <AlertTriangle size={13} /> <strong>Limite atingido:</strong> já há {MAX_TRENDING} pacotes em "Em Alta". Desative um antes de ativar outro.
-        </div>
-      )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={activePackages.map(x => x.realIdx)} strategy={verticalListSortingStrategy}>
           {activePackages.map(({ p: pkg, realIdx }) => (
@@ -1068,7 +1057,6 @@ function PackagesTab() {
               pkg={pkg}
               index={realIdx}
               total={packages.length}
-              trendingCount={trendingCount}
               categories={categories}
               otherSlugs={packages.filter((_, j) => j !== realIdx).map(p => (p.slug || '').toLowerCase()).filter(Boolean)}
               allPackages={packages}
