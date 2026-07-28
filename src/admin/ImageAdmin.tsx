@@ -727,14 +727,29 @@ function PackageCard({ pkg, index, total, categories, otherSlugs = [], allPackag
 }) {
   const { showConfirm } = useDialog();
   const [trendMsg, setTrendMsg] = useState<string | null>(null);
+  const [local, setLocal] = useState<TrendingPackage>(pkg);
   const [hasEdited, setHasEdited] = useState(false);
 
-  const handleToggle = () => {
-    if (isOpen && hasEdited) { onSaved?.(); setHasEdited(false); }
-    onToggle();
+  // Sincroniza local quando pkg muda (após salvar, o hook reconstrói o
+  // array). SÓ faz isso sem edições pendentes: o polling recria o array
+  // (novas referências de objeto) mesmo sem mudança real no conteúdo —
+  // sincronizar sempre apagaria qualquer campo editado e ainda não salvo.
+  useEffect(() => { if (!hasEdited) setLocal(pkg); }, [pkg, hasEdited]);
+
+  // Edição local — NÃO salva no servidor. Só o botão "Salvar Alterações"
+  // (no fim do formulário) envia tudo de uma vez. Antes, cada tecla digitada
+  // disparava um autosave imediato, que ia direto para aprovação do Master —
+  // se o usuário continuasse editando, a próxima edição podia se perder ou
+  // reverter em vez de somar ao que já tinha sido enviado.
+  const set = (d: Partial<TrendingPackage>) => { setLocal(p => ({ ...p, ...d })); setHasEdited(true); };
+
+  const handleSave = () => {
+    onUpdate(local);
+    setHasEdited(false);
+    onSaved?.();
   };
 
-  const handleUpdate = (d: Partial<TrendingPackage>) => { onUpdate(d); setHasEdited(true); };
+  const handleToggle = () => { onToggle(); };
 
   const handleTrendToggle = () => {
     const next = !pkg.isTrending;
@@ -763,6 +778,9 @@ function PackageCard({ pkg, index, total, categories, otherSlugs = [], allPackag
             )}
             {pkg.portalHidden && (
               <span style={{ fontSize: 10, background: '#3a0d0d', color: '#f87171', border: '1px solid #7a1a1a', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>Oculto neste portal</span>
+            )}
+            {hasEdited && (
+              <span style={{ fontSize: 10, background: '#3d2800', color: '#f7ad40', border: '1px solid #7a4f00', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>● Não salvo</span>
             )}
           </div>
           <div style={{ fontSize: 12, color: '#737373', marginTop: 2 }}>{pkg.date} · {pkg.loc} · {pkg.currency || 'BRL'} {pkg.price}</div>
@@ -868,30 +886,30 @@ function PackageCard({ pkg, index, total, categories, otherSlugs = [], allPackag
 
             <AdminSection title="Informações Básicas" icon={Tag}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-                <Field label="Título do Pacote" icon={<Tag size={11} />} value={pkg.title} onChange={v => onUpdate({ title: v })} />
-                <Field label="Local / Destino" icon={<MapPin size={11} />} value={pkg.loc} onChange={v => onUpdate({ loc: v })} />
-                <DateRangeField value={pkg.date} onChange={v => onUpdate({ date: v })} />
-                <PriceMaskInput price={pkg.price} currency={pkg.currency || 'BRL'} onPriceChange={v => onUpdate({ price: v })} />
-                <CurrencySelect value={pkg.currency || 'BRL'} onChange={v => onUpdate({ currency: v })} />
-                <Field label="Parcelas (ex: 10)" icon={<DollarSign size={11} />} value={pkg.installments || ''} onChange={v => onUpdate({ installments: v })} />
-                
+                <Field label="Título do Pacote" icon={<Tag size={11} />} value={local.title} onChange={v => set({ title: v })} />
+                <Field label="Local / Destino" icon={<MapPin size={11} />} value={local.loc} onChange={v => set({ loc: v })} />
+                <DateRangeField value={local.date} onChange={v => set({ date: v })} />
+                <PriceMaskInput price={local.price} currency={local.currency || 'BRL'} onPriceChange={v => set({ price: v })} />
+                <CurrencySelect value={local.currency || 'BRL'} onChange={v => set({ currency: v })} />
+                <Field label="Parcelas (ex: 10)" icon={<DollarSign size={11} />} value={local.installments || ''} onChange={v => set({ installments: v })} />
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: '#737373', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}><Award size={11} /> Tag do Card</label>
                   <select
-                    value={pkg.tag}
-                    onChange={e => onUpdate({ tag: e.target.value })}
+                    value={local.tag}
+                    onChange={e => set({ tag: e.target.value })}
                     style={{ background: '#001529', border: '1px solid #333333', borderRadius: 7, color: '#e8edf2', fontSize: 13, padding: '9px 12px', outline: 'none' }}
                   >
                     {TAG_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                    {!TAG_OPTIONS.includes(pkg.tag) && <option value={pkg.tag}>{pkg.tag}</option>}
+                    {!TAG_OPTIONS.includes(local.tag) && <option value={local.tag}>{local.tag}</option>}
                   </select>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: '#737373', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}><Package size={11} /> Categoria</label>
                   <select
-                    value={pkg.category || ''}
-                    onChange={e => onUpdate({ category: e.target.value })}
+                    value={local.category || ''}
+                    onChange={e => set({ category: e.target.value })}
                     style={{ background: '#001529', border: '1px solid #333333', borderRadius: 7, color: '#e8edf2', fontSize: 13, padding: '9px 12px', outline: 'none', cursor: 'pointer' }}
                   >
                     <option value="">Selecione uma categoria</option>
@@ -904,21 +922,21 @@ function PackageCard({ pkg, index, total, categories, otherSlugs = [], allPackag
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: '1 / -1' }}>
                   <label style={{ fontSize: 11, color: '#737373', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span><LinkIcon size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />URL da LP (slug — link permanente para campanhas)</span>
-                    <button type="button" onClick={() => onUpdate({ slug: uniqueSlug(slugify(pkg.title), otherSlugs) })}
+                    <button type="button" onClick={() => set({ slug: uniqueSlug(slugify(local.title), otherSlugs) })}
                       style={{ background: '#002042', border: '1px solid #333', color: '#aaa', padding: '2px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>
                       Gerar do título
                     </button>
                   </label>
                   <input
-                    value={pkg.slug ?? ''}
-                    onChange={e => onUpdate({ slug: sanitizeSlugInput(e.target.value) })}
+                    value={local.slug ?? ''}
+                    onChange={e => set({ slug: sanitizeSlugInput(e.target.value) })}
                     placeholder="ex: copa-do-mundo-2026 (gerado automaticamente ao editar o título)"
                     style={{ background: '#001529', border: '1px solid #333333', borderRadius: 7, color: '#e8edf2', fontSize: 13, padding: '9px 12px', outline: 'none' }}
                   />
-                  {pkg.slug && otherSlugs.includes(pkg.slug.toLowerCase()) ? (
+                  {local.slug && otherSlugs.includes(local.slug.toLowerCase()) ? (
                     <span style={{ fontSize: 10, color: '#f87171' }}>⚠️ Este slug já é usado por outro pacote — escolha outro para não conflitar.</span>
                   ) : (
-                    <span style={{ fontSize: 10, color: '#4ade80' }}>Link da LP: /pacote/{pkg.slug || index} {pkg.slug ? '(permanente — seguro para campanhas e UTMs)' : '(numérico — muda se a ordem dos pacotes mudar)'}</span>
+                    <span style={{ fontSize: 10, color: '#4ade80' }}>Link da LP: /pacote/{local.slug || index} {local.slug ? '(permanente — seguro para campanhas e UTMs)' : '(numérico — muda se a ordem dos pacotes mudar)'}</span>
                   )}
                 </div>
 
@@ -943,17 +961,17 @@ function PackageCard({ pkg, index, total, categories, otherSlugs = [], allPackag
 
             <AdminSection title="Mídia & Descrição Principal" icon={ImgIcon}>
               <div style={{ display: 'grid', gap: 16 }}>
-                <ImageUploadField label="Imagem de Capa do Pacote" value={pkg.img} onChange={v => handleUpdate({ img: v })} />
+                <ImageUploadField label="Imagem de Capa do Pacote" value={local.img} onChange={v => set({ img: v })} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <ImageUploadField
                     label="Logo do Badge (imagem)"
                     labelIcon={<Award size={11} />}
-                    value={pkg.badgeImg ?? ''}
-                    onChange={v => onUpdate({ badgeImg: v })}
+                    value={local.badgeImg ?? ''}
+                    onChange={v => set({ badgeImg: v })}
                   />
-                  <Field label="Sigla do Badge (Ex: GP)" icon={<Type size={11} />} value={pkg.badge} onChange={v => onUpdate({ badge: v })} />
+                  <Field label="Sigla do Badge (Ex: GP)" icon={<Type size={11} />} value={local.badge} onChange={v => set({ badge: v })} />
                 </div>
-                <Textarea label="Descrição do Pacote (Front)" icon={<FileText size={11} />} value={pkg.description ?? ''} onChange={v => handleUpdate({ description: v })} rows={3} />
+                <Textarea label="Descrição do Pacote (Front)" icon={<FileText size={11} />} value={local.description ?? ''} onChange={v => set({ description: v })} rows={3} />
               </div>
             </AdminSection>
 
@@ -962,32 +980,56 @@ function PackageCard({ pkg, index, total, categories, otherSlugs = [], allPackag
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ background: '#333333', padding: 8, borderRadius: 8, marginTop: 24, flexShrink: 0 }}><Plane size={16} color="#f59e0b" /></div>
                   <div style={{ flex: 1 }}>
-                    <Textarea label="Logística de Voo" icon={<Plane size={11} />} value={pkg.flightDetails ?? ''} onChange={v => onUpdate({ flightDetails: v })} rows={2} />
+                    <Textarea label="Logística de Voo" icon={<Plane size={11} />} value={local.flightDetails ?? ''} onChange={v => set({ flightDetails: v })} rows={2} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ background: '#333333', padding: 8, borderRadius: 8, marginTop: 24, flexShrink: 0 }}><BedDouble size={16} color="#f59e0b" /></div>
                   <div style={{ flex: 1 }}>
-                    <Textarea label="Detalhes de Hospedagem" icon={<BedDouble size={11} />} value={pkg.hotelDetails ?? ''} onChange={v => onUpdate({ hotelDetails: v })} rows={2} />
+                    <Textarea label="Detalhes de Hospedagem" icon={<BedDouble size={11} />} value={local.hotelDetails ?? ''} onChange={v => set({ hotelDetails: v })} rows={2} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ background: '#333333', padding: 8, borderRadius: 8, marginTop: 24, flexShrink: 0 }}><Ticket size={16} color="#f59e0b" /></div>
                   <div style={{ flex: 1 }}>
-                    <Textarea label="Acesso & Ingressos" icon={<Ticket size={11} />} value={pkg.ticketDetails ?? ''} onChange={v => onUpdate({ ticketDetails: v })} rows={2} />
+                    <Textarea label="Acesso & Ingressos" icon={<Ticket size={11} />} value={local.ticketDetails ?? ''} onChange={v => set({ ticketDetails: v })} rows={2} />
                   </div>
                 </div>
               </div>
             </AdminSection>
 
             {/* ── Conteúdo da Landing Page — editor compartilhado (Admin/Master/Marketing) ── */}
-            <LPContentEditor pkg={pkg} onUpdate={handleUpdate} tokenKey="emais_admin_token" allPackages={allPackages} />
+            <LPContentEditor pkg={local} onUpdate={set} tokenKey="emais_admin_token" allPackages={allPackages} />
 
             <div style={{ marginTop: 24, padding: 16, background: '#3a0d0d1a', borderRadius: 12, border: '1px solid #3a0d0d', display: 'flex', alignItems: 'center', gap: 12 }}>
               <AlertTriangle size={20} color="#f87171" />
               <p style={{ fontSize: 12, color: '#f87171', margin: 0, lineHeight: 1.5 }}>
                 <strong>Atenção:</strong> Informações de Rastreamento (Mautic, Pixels e Webhooks) devem ser configuradas exclusivamente pelo módulo de <strong>Marketing</strong>.
               </p>
+            </div>
+
+            {/* ── Salvar (manual — nada é enviado ao servidor até clicar aqui) ── */}
+            <div style={{
+              position: 'sticky', bottom: 0, marginTop: 8, padding: '12px 16px', background: '#002042',
+              border: `1px solid ${hasEdited ? '#f7ad40' : '#333333'}`, borderRadius: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <span style={{ fontSize: 12, color: hasEdited ? '#f7ad40' : '#737373', fontWeight: 600 }}>
+                {hasEdited ? '● Há alterações não salvas neste pacote.' : 'Nenhuma alteração pendente.'}
+              </span>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!hasEdited}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px',
+                  background: hasEdited ? 'linear-gradient(135deg, #f7ad40, #d45f1a)' : '#333333',
+                  color: hasEdited ? '#002042' : '#737373', border: 'none', borderRadius: 8,
+                  fontSize: 13, fontWeight: 700, cursor: hasEdited ? 'pointer' : 'default',
+                }}
+              >
+                <Check size={14} /> Salvar e Enviar para Aprovação
+              </button>
             </div>
           </div>
         </div>
