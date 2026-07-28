@@ -5,7 +5,7 @@ import {
   Upload, Download, Eye, Shield, X, Plus, Trash2,
   ChevronUp, ChevronDown, CalendarDays, MapPin, Tag,
   DollarSign, FileText, Plane, BedDouble, Ticket, Save,
-  Flame, AlertTriangle, Award, Type, Package, ImageIcon as ImgIcon, CheckCircle2, XCircle, Globe2, Clock, GripVertical, Copy, Link as LinkIcon
+  Flame, AlertTriangle, Award, Type, Package, ImageIcon as ImgIcon, CheckCircle2, XCircle, Globe2, Clock, GripVertical, Copy, Link as LinkIcon, Check
 } from 'lucide-react';
 import {
   DndContext,

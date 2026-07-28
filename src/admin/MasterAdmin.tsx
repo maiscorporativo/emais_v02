@@ -201,7 +201,7 @@ function PackageReviewCard({ pkg, onApprove, onReject, onUpdate, onRemove, allPa
   const masterUser = localStorage.getItem(MASTER_AUTH_KEY) ?? 'master';
   const now = () => new Date().toISOString();
   const { toast } = useToast();
-  const { showAlert, showConfirm } = useDialog();
+  const { showConfirm } = useDialog();
 
   const handleSaveApprove = () => { onUpdate({ ...local, status: 'approved', updatedBy: masterUser, updatedAt: now() }); setHasEdited(false); toast('Edições salvas com sucesso!', 'success'); };
   const handleSaveOnly    = () => { onUpdate({ ...local, updatedBy: masterUser, updatedAt: now() }); setHasEdited(false); toast('Salvo sem aprovar.', 'info'); };
