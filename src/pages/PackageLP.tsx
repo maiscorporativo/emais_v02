@@ -454,6 +454,20 @@ export default function PackageLP() {
       if (!form) return;
       const formName = form.getAttribute('data-mautic-form') || '';
 
+      // Preenche sozinho o campo "Pacote de Interesse" com o nome deste pacote
+      // e trava para somente-leitura — assim UM ÚNICO formulário do Mautic
+      // serve para todos os pacotes, sem precisar customizar um HTML diferente
+      // por pacote. No Mautic, o campo de texto tem alias "pacote_interesse"
+      // como PRIMEIRO campo do formulário (acima de "Nome"); aqui ele é
+      // preenchido a cada carregamento da página.
+      const pacoteInput = form.querySelector('[name="mauticform[pacote_interesse]"]') as HTMLInputElement | null;
+      if (pacoteInput) {
+        pacoteInput.value = pkg.title;
+        pacoteInput.readOnly = true;
+        pacoteInput.dispatchEvent(new Event('input', { bubbles: true }));
+        pacoteInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
       // @ts-ignore
       window.MauticDomain = 'https://mkt.maiscorporativo.tur.br';
       // @ts-ignore
@@ -1203,6 +1217,7 @@ export default function PackageLP() {
         .mautic-premium-form label span.mauticform-required { color: #f7ad40; }
         .mautic-premium-form input:not([type="radio"]), .mautic-premium-form select, .mautic-premium-form textarea { width: 100% !important; height: 45px !important; background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 10px !important; padding: 0 16px !important; color: #fff !important; font-size: 14px !important; outline: none; transition: all 0.2s; }
         .mautic-premium-form input:focus { border-color: #f7ad40; background: rgba(228, 60, 68, 0.04); }
+        .mautic-premium-form input[readonly] { color: #f7ad40 !important; font-weight: 700 !important; cursor: default; background: rgba(247, 173, 64, 0.08) !important; border-color: rgba(247, 173, 64, 0.25) !important; }
         .mautic-premium-form .mauticform-radiogrp-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; width: 100%; }
         @media (max-width: 600px) { .mauticform-grid-row { grid-template-columns: 1fr !important; } }
         .mautic-premium-form input[type="radio"] { appearance: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.15); border-radius: 50%; cursor: pointer; position: relative; flex-shrink: 0; }
