@@ -1210,10 +1210,11 @@ export default function PackageLP() {
         @keyframes spin { to { transform: rotate(360deg); } }
         
         .mautic-premium-form .mauticform_wrapper { width: 100% !important; }
-        .mautic-premium-form .mauticform-innerform { display: flex; flex-direction: column; gap: 28px; }
-        .mauticform-grid-row { display: grid !important; grid-template-columns: 1fr 1fr !important; column-gap: 16px !important; row-gap: 28px !important; width: 100% !important; }
-        .mautic-premium-form .mauticform-row { margin-bottom: 0; width: 100% !important; }
-        .mautic-premium-form label { display: block; font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+        .mautic-premium-form .mauticform-page-wrapper, .mautic-premium-form .mauticform-innerform { display: flex; flex-direction: column; }
+        .mauticform-grid-row { display: grid !important; grid-template-columns: 1fr 1fr !important; column-gap: 16px !important; width: 100% !important; margin-bottom: 28px !important; }
+        .mautic-premium-form .mauticform-row { margin-bottom: 0 !important; width: 100% !important; }
+        .mautic-premium-form .mauticform-radiogrp { margin-bottom: 28px !important; }
+        .mautic-premium-form label { display: block; font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px !important; }
         .mautic-premium-form label span.mauticform-required { color: #f7ad40; }
         .mautic-premium-form input:not([type="radio"]), .mautic-premium-form select, .mautic-premium-form textarea { width: 100% !important; height: 45px !important; background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 10px !important; padding: 0 16px !important; color: #fff !important; font-size: 14px !important; outline: none; transition: all 0.2s; }
         .mautic-premium-form input:focus { border-color: #f7ad40; background: rgba(228, 60, 68, 0.04); }
