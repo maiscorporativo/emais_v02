@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 import contentRouter from './routes/content.js';
 import uploadRouter, { uploadsDir } from './routes/upload.js';
 import authRouter from './routes/auth.js';
@@ -30,6 +31,34 @@ app.use(express.urlencoded({ extended: true })); // parse form POST do ContactFo
 app.use('/uploads', express.static(uploadsDir));
 const publicPath = join(__dirname, '..', 'public');
 app.use(express.static(publicPath));
+
+/* ── Sites estáticos persistentes (LPs externas: lemans2027, indy500…) ──
+   Defina STATIC_SITES_DIR com um caminho absoluto FORA da área de deploy.
+   Cada subpasta vira uma rota do site:
+     <STATIC_SITES_DIR>/lemans2027 → https://dominio/lemans2027
+     <STATIC_SITES_DIR>/indy500    → https://dominio/indy500
+   Basta criar uma nova subpasta (com index.html) e reiniciar o app. */
+if (process.env.STATIC_SITES_DIR) {
+  const sitesDir = resolve(process.env.STATIC_SITES_DIR);
+  if (fs.existsSync(sitesDir)) {
+    for (const name of fs.readdirSync(sitesDir)) {
+      const siteDir = join(sitesDir, name);
+      try {
+        if (!fs.statSync(siteDir).isDirectory()) continue;
+        app.use(`/${name}`, express.static(siteDir));
+        // Fallback SPA da LP: rotas internas voltam para o index.html dela
+        if (fs.existsSync(join(siteDir, 'index.html'))) {
+          app.get(new RegExp(`^/${name}(/.*)?$`), (_req, res) => res.sendFile(join(siteDir, 'index.html')));
+        }
+        console.log(`🌐 Site estático montado: /${name} → ${siteDir}`);
+      } catch (e) {
+        console.warn(`⚠️ Falha ao montar site estático "${name}":`, e.message);
+      }
+    }
+  } else {
+    console.warn(`⚠️ STATIC_SITES_DIR definido mas não existe: ${sitesDir}`);
+  }
+}
 
 /* ── API Routes ─────────────────────────────────────────────── */
 app.use('/api/content', contentRouter);

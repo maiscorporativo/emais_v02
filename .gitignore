@@ -31,3 +31,8 @@ dist-ssr
 # NUNCA devem ser sobrescritas pelo git deploy
 public/uploads/*
 !public/uploads/.gitkeep
+
+# Sites estáticos persistentes (LPs externas) — vivem FORA da área de
+# deploy no servidor (pasta apontada por STATIC_SITES_DIR), nunca no git
+/indy500/
+/lemans2027/
