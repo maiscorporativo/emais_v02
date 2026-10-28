@@ -2,7 +2,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
-import PartnersMarquee from './components/PartnersMarquee';
+// import PartnersMarquee from './components/PartnersMarquee'; // desativado a pedido
 import TrendingPackages from './components/TrendingPackages';
 // import PlatinumAccess from './components/PlatinumAccess'; // desativado a pedido
 import ContactForm from './components/ContactForm';
@@ -40,7 +40,7 @@ function SitePage() {
       </div>
       <div className="h-[110px]" />
       <HeroSection />
-      <PartnersMarquee />
+      {/* <PartnersMarquee /> — desativado a pedido */}
       <TrendingPackages />
       <CategoriesSection />
       <ContactForm />
